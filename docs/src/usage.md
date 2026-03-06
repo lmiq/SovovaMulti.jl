@@ -235,24 +235,4 @@ println("SSR  = ", result.objective)
 
 ## Graphical User Interface
 
-SovovaMulti includes a built-in web GUI. Launch it with:
-
-```julia
-using SovovaMulti
-sovovagui()
-```
-
-This starts a local HTTP server and opens your browser at `http://127.0.0.1:9876`.
-In the interface you can:
-- Upload a data file (text or Excel) with time and replicate columns
-- Fill in all operating conditions through form fields
-- Configure optimizer bounds and maximum evaluations
-- Run the fitting and see results directly in the browser
-
-To use a different port or skip auto-opening the browser:
-
-```julia
-sovovagui(port=8080, launch=false)
-```
-
-Press **Ctrl-C** in the REPL to stop the server.
+See the [GUI](@ref "Graphical User Interface") page for the built-in web interface.

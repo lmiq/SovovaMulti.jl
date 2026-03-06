@@ -18,6 +18,17 @@ or more experimental extraction curves simultaneously. The package:
   [BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl).
 - No need for manual multi-start — the optimizer handles global search automatically.
 
+## Graphical interface
+
+Prefer a point-and-click workflow? Launch the built-in web GUI — no coding needed:
+
+```julia
+using SovovaMulti
+sovovagui()
+```
+
+See the [GUI](@ref "Graphical User Interface") page for details.
+
 ## Quick start
 
 ```julia

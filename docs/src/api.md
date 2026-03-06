@@ -33,6 +33,4 @@ SovovaResult
 
 ## Graphical Interface
 
-```@docs
-sovovagui
-```
+See the [GUI](@ref "Graphical User Interface") page.
