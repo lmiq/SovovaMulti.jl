@@ -1,6 +1,6 @@
 module SovovaMulti
 
-using PRIMA
+using BlackBoxOptim
 
 export ExtractionCurve, SovovaResult, sovova_multi
 
@@ -118,7 +118,6 @@ Result of multi-curve Sovová model fitting.
 - `tcer::Vector{Float64}`: CER period duration for each curve (s)
 - `ycal::Vector{Vector{Float64}}`: calculated extraction curves (kg)
 - `objective::Float64`: sum of squared residuals at optimum
-- `info`: optimizer info from PRIMA
 """
 struct SovovaResult
     kya::Vector{Float64}
@@ -128,7 +127,6 @@ struct SovovaResult
     tcer::Vector{Float64}
     ycal::Vector{Vector{Float64}}
     objective::Float64
-    info::PRIMA.Info
 end
 
 function Base.show(io::IO, r::SovovaResult)
@@ -142,18 +140,46 @@ function Base.show(io::IO, r::SovovaResult)
 end
 
 """
+    SimWorkspace
+
+Pre-allocated workspace for the Sovová simulation, avoiding repeated allocations
+in the optimization loop.
+"""
+struct SimWorkspace
+    xs::Vector{Float64}
+    y::Vector{Float64}
+    ycal::Vector{Float64}
+end
+
+SimWorkspace(nh::Int, ndata::Int) = SimWorkspace(Vector{Float64}(undef, nh), zeros(nh + 1), zeros(ndata))
+
+"""
     simulate(curve::ExtractionCurve, kya, kxa, xk)
+    simulate!(workspace::SimWorkspace, curve::ExtractionCurve, kya, kxa, xk)
 
 Simulate the Sovová extraction model for one curve.
 Returns a vector of calculated cumulative extracted masses at the experimental times.
+The in-place variant `simulate!` reuses pre-allocated workspace arrays.
 """
 function simulate(curve::ExtractionCurve, kya, kxa, xk)
+    ws = SimWorkspace(curve.nh, length(curve.t))
+    simulate!(ws, curve, kya, kxa, xk)
+end
+
+function simulate!(ws::SimWorkspace, curve::ExtractionCurve, kya, kxa, xk)
     (; t, m_ext, porosity, x0, solid_density, solvent_density,
        flow_rate, bed_height, bed_diameter, particle_diameter,
        solid_mass, solubility, viscosity, diffusivity, nh, nt) = curve
 
     ndata = length(t)
-    ycal = zeros(ndata)
+    xs = ws.xs
+    y = ws.y
+    ycal = ws.ycal
+
+    # Initialize workspace arrays
+    fill!(xs, x0)
+    fill!(y, 0.0)
+    fill!(ycal, 0.0)
 
     # Recompute porosity from bed geometry (as in Fortran code)
     eps = 1.0 - 4.0 * solid_mass / (π * bed_diameter^2 * bed_height * solid_density)
@@ -164,13 +190,7 @@ function simulate(curve::ExtractionCurve, kya, kxa, xk)
     dt = tempo / nt
     dh = bed_height / nh
 
-    # Solid-phase concentration at each spatial node
-    xs = fill(x0, nh)
-    # Fluid-phase concentration at each spatial node (including inlet)
-    y = zeros(nh + 1)  # y[1] = inlet = 0, y[k+1] = node k outlet
-    yant_outlet = 0.0   # previous outlet concentration for trapezoidal integration
-
-    # Cumulative numerical integral of outlet mass
+    yant_outlet = 0.0
     ynum_prev = 0.0
     ynum_curr = 0.0
 
@@ -233,10 +253,8 @@ The model fits per-curve parameters `kya` (fluid-phase mass transfer coefficient
 - `kya_bounds::Tuple{Float64,Float64}`: bounds for kya (default: `(0.0, 0.05)`)
 - `kxa_bounds::Tuple{Float64,Float64}`: bounds for kxa (default: `(0.0, 0.005)`)
 - `xk_ratio_bounds::Tuple{Float64,Float64}`: bounds for xk/x0 (default: `(0.0, 1.0)`)
-- `maxfun::Int`: max function evaluations per BOBYQA restart (default: `5000`)
-- `rhobeg::Union{Float64,Nothing}`: initial trust region radius (default: auto)
-- `rhoend::Float64`: final trust region radius (default: `1e-6`)
-- `nrestarts::Int`: number of multi-start restarts (default: `1000`)
+- `maxevals::Int`: maximum number of function evaluations (default: `50000`)
+- `tracemode::Symbol`: verbosity of optimizer output (default: `:silent`). Use `:compact` or `:verbose` for progress.
 
 # Returns
 - `SovovaResult`: fitted model parameters and calculated curves.
@@ -250,33 +268,22 @@ function sovova_multi(
     kya_bounds::Tuple{Float64,Float64} = (0.0, 0.05),
     kxa_bounds::Tuple{Float64,Float64} = (0.0, 0.005),
     xk_ratio_bounds::Tuple{Float64,Float64} = (0.0, 1.0),
-    maxfun::Int = 5000,
-    rhobeg::Union{Float64,Nothing} = nothing,
-    rhoend::Float64 = 1e-6,
-    nrestarts::Int = 1000,
+    maxevals::Int = 50_000,
+    tracemode::Symbol = :silent,
 )
     nexp = length(curves)
     n = 2 * nexp + 1  # number of parameters
 
-    # Build bounds vectors: [kya_1, kxa_1, kya_2, kxa_2, ..., xk_ratio]
-    xl = zeros(n)
-    xu = zeros(n)
+    # Build bounds: [kya_1, kxa_1, kya_2, kxa_2, ..., xk_ratio]
+    search_range = Tuple{Float64,Float64}[]
     for iexp in 1:nexp
-        xl[2*iexp-1] = kya_bounds[1]
-        xu[2*iexp-1] = kya_bounds[2]
-        xl[2*iexp]   = kxa_bounds[1]
-        xu[2*iexp]   = kxa_bounds[2]
+        push!(search_range, kya_bounds)
+        push!(search_range, kxa_bounds)
     end
-    xl[n] = xk_ratio_bounds[1]
-    xu[n] = xk_ratio_bounds[2]
+    push!(search_range, xk_ratio_bounds)
 
-    # Auto rhobeg: smallest bound range / 10
-    _rhobeg = if rhobeg === nothing
-        min_range = minimum(xu[j] - xl[j] for j in 1:n)
-        min_range / 10.0
-    else
-        rhobeg
-    end
+    # Pre-allocate simulation workspaces (one per curve)
+    workspaces = [SimWorkspace(curves[i].nh, length(curves[i].t)) for i in 1:nexp]
 
     # Objective function: sum of squared residuals
     function objective(a)
@@ -286,7 +293,7 @@ function sovova_multi(
             kya_i = a[2*iexp-1]
             kxa_i = a[2*iexp]
             xk_i = curves[iexp].x0 * xk_ratio
-            ycal = simulate(curves[iexp], kya_i, kxa_i, xk_i)
+            ycal = simulate!(workspaces[iexp], curves[iexp], kya_i, kxa_i, xk_i)
             for i in eachindex(ycal)
                 f += (ycal[i] - curves[iexp].m_ext[i])^2
             end
@@ -294,25 +301,16 @@ function sovova_multi(
         return f
     end
 
-    # Multi-start optimization (as in the Fortran code)
-    best_f = Inf
-    best_a = zeros(n)
-    best_info = nothing
+    # Global optimization with BlackBoxOptim
+    res = bboptimize(objective;
+        SearchRange = search_range,
+        NumDimensions = n,
+        MaxFuncEvals = maxevals,
+        TraceMode = tracemode,
+    )
 
-    for restart in 1:nrestarts
-        # Random initial point within bounds
-        a0 = [xl[j] + rand() * (xu[j] - xl[j]) for j in 1:n]
-
-        x_opt, info = bobyqa(objective, a0;
-            xl=xl, xu=xu,
-            rhobeg=_rhobeg, rhoend=rhoend, maxfun=maxfun,
-        )
-        if info.fx < best_f
-            best_f = info.fx
-            best_a .= x_opt
-            best_info = info
-        end
-    end
+    best_a = best_candidate(res)
+    best_f = best_fitness(res)
 
     # Extract results
     xk_ratio = best_a[n]
@@ -333,7 +331,7 @@ function sovova_multi(
 
     return SovovaResult(
         kya_vec, kxa_vec, xk_ratio, xk_vec, tcer_vec,
-        ycal_all, best_f, best_info,
+        ycal_all, best_f,
     )
 end
 

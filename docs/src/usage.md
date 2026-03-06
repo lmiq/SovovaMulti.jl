@@ -107,26 +107,25 @@ result.ycal[2]  # calculated curve 2
 
 ## Optimizer options
 
-The fitting uses the BOBYQA algorithm from [PRIMA.jl](https://github.com/libprima/PRIMA.jl)
-with multi-start optimization. Control the optimization via keyword arguments:
+The fitting uses global optimization from
+[BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl).
+Control the optimization via keyword arguments:
 
 ```julia
 result = sovova_multi(curves;
     kya_bounds      = (0.0, 0.05),   # bounds for kya (1/s)
     kxa_bounds      = (0.0, 0.005),  # bounds for kxa (1/s)
     xk_ratio_bounds = (0.0, 1.0),    # bounds for xk/x0
-    maxfun          = 5000,          # max evaluations per restart
-    rhoend          = 1e-6,          # final trust region radius
-    nrestarts       = 1000,          # number of random restarts
+    maxevals        = 50_000,        # max function evaluations
+    tracemode       = :silent,       # :silent, :compact, or :verbose
 )
 ```
 
 If the default bounds do not cover your expected parameter range, adjust them accordingly.
-The initial trust region radius (`rhobeg`) is set automatically from the bounds but can be
-overridden:
+To see optimizer progress, set `tracemode = :compact`:
 
 ```julia
-result = sovova_multi(curve; rhobeg=0.001)
+result = sovova_multi(curve; tracemode=:compact)
 ```
 
 ## Complete example with real data

@@ -4,10 +4,10 @@ version = "1.0.0-DEV"
 authors = ["Leandro Martinez <lmartine@unicamp.br> and contributors"]
 
 [deps]
-PRIMA = "0a7d04aa-8ac2-47b3-b7a7-9dbd6ad661ed"
+BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
 
 [compat]
-PRIMA = "0.2"
+BlackBoxOptim = "0.6"
 julia = "1.10"
 
 [extras]

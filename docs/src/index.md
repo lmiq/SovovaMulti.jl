@@ -14,9 +14,9 @@ or more experimental extraction curves simultaneously. The package:
 - Accepts experimental data and operating conditions in **laboratory units** (g, cm, min).
 - Solves the Sovová partial-differential-equation model numerically (finite differences).
 - Fits per-curve mass transfer coefficients (`kya`, `kxa`) and a shared easily-accessible
-  solute ratio (`xk/x0`) using the derivative-free [BOBYQA](https://www.pdfo.net/) algorithm
-  from [PRIMA.jl](https://github.com/libprima/PRIMA.jl).
-- Supports multi-start optimization to avoid local minima.
+  solute ratio (`xk/x0`) using global optimization from
+  [BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl).
+- No need for manual multi-start — the optimizer handles global search automatically.
 
 ## Quick start
 

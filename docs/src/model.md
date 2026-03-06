@@ -90,15 +90,12 @@ When fitting multiple curves simultaneously:
 - Each curve has its own ``k_Y a`` and ``k_X a``
 - The ratio ``x_k / x_0`` is **shared** across all curves
 
-The optimization uses the **BOBYQA** (Bound Optimization BY Quadratic Approximation)
-algorithm from [PRIMA.jl](https://github.com/libprima/PRIMA.jl), a derivative-free
-bound-constrained optimizer. Multi-start optimization with random initial points is used
-to mitigate convergence to local minima.
+The optimization uses a global, derivative-free optimizer from
+[BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl).
+This avoids the need for manual multi-start strategies and handles the
+non-convex, bound-constrained search space robustly.
 
 ## References
 
 - Sovová, H. (1994). Rate of the vegetable oil extraction with supercritical CO₂ — I. 
   Modelling of extraction curves. *Chemical Engineering Science*, 49(3), 409–414.
-- Powell, M. J. D. (2009). The BOBYQA algorithm for bound constrained optimization without
-  derivatives. Technical Report, Department of Applied Mathematics and Theoretical Physics,
-  University of Cambridge.

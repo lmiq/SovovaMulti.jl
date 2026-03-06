@@ -98,9 +98,48 @@ using Test
             viscosity = 0.06,
         )
 
-        result = sovova_multi(curve; nrestarts=50, maxfun=2000)
+        result = sovova_multi(curve; maxevals=20_000)
         @test result.objective < 1e-8
         @test length(result.kya) == 1
         @test length(result.kxa) == 1
+    end
+
+    @testset "mateus1 experimental data" begin
+        curve = ExtractionCurve(
+            t     = [0.0, 0.0, 5.0, 5.0, 10.0, 10.0, 15.0, 15.0, 20.0, 20.0,
+                     30.0, 30.0, 45.0, 45.0, 60.0, 60.0, 75.0, 75.0, 90.0, 90.0,
+                     110.0, 110.0, 135.0, 135.0, 155.0, 155.0, 180.0, 180.0,
+                     210.0, 210.0, 240.0, 240.0, 270.0, 270.0, 300.0, 300.0],
+            m_ext = [0.0000, 0.0000, 0.1097, 0.0935, 0.2571, 0.2265,
+                     0.3894, 0.3507, 0.5228, 0.4746, 0.7872, 0.7270,
+                     1.1633, 1.0636, 1.4848, 1.3746, 1.7484, 1.6411,
+                     1.9751, 1.8913, 2.2485, 2.1785, 2.5630, 2.5539,
+                     2.7584, 2.7690, 3.0323, 3.0527, 3.3022, 3.3416,
+                     3.5332, 3.5906, 3.7349, 3.8130, 3.9260, 4.0177],
+            temperature       = 333.15,
+            porosity          = 0.7,
+            x0                = 0.069,
+            solid_density     = 1.32,
+            solvent_density   = 0.78023,
+            flow_rate         = 9.9,
+            bed_height        = 9.2,
+            bed_diameter      = 5.42,
+            particle_diameter = 0.0337,
+            solid_mass        = 100.01,
+            solubility        = 0.003166,
+            viscosity         = 0.067739,
+        )
+
+        result = sovova_multi(curve; maxevals=50_000)
+
+        # Should achieve a reasonable fit
+        @test result.objective < 1e-5
+        # Parameters should be within physical bounds
+        @test 0 < result.kya[1] < 0.05
+        @test 0 < result.kxa[1] < 0.005
+        @test 0 < result.xk_ratio < 1.0
+        @test result.tcer[1] > 0
+        # Calculated curve should have correct length
+        @test length(result.ycal[1]) == 36
     end
 end
