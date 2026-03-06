@@ -52,6 +52,14 @@ and extract it to a directory of your choice, adding the `bin/` subdirectory to 
 
 ## Installing SovovaMulti.jl
 
+Currently, the development version can be installed with:
+
+```julia
+julia> import Pkg
+
+julia> Pkg.add(url="https://github.com/lmiq/SovovaMulti.jl")
+```
+
 Once Julia is installed, start a Julia session and run:
 
 ```julia
