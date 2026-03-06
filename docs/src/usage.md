@@ -128,3 +128,75 @@ overridden:
 ```julia
 result = sovova_multi(curve; rhobeg=0.001)
 ```
+
+## Complete example with real data
+
+The following example uses experimental data from a supercritical CO₂ extraction experiment
+at 333.15 K (data from Mateus et al.):
+
+```julia
+using SovovaMulti
+
+curve = ExtractionCurve(
+    # Extraction times (min) and cumulative extracted mass (g)
+    # Duplicate time points correspond to replicate measurements
+    t     = [0.0, 0.0,
+             5.0, 5.0,
+             10.0, 10.0,
+             15.0, 15.0,
+             20.0, 20.0,
+             30.0, 30.0,
+             45.0, 45.0,
+             60.0, 60.0,
+             75.0, 75.0,
+             90.0, 90.0,
+             110.0, 110.0,
+             135.0, 135.0,
+             155.0, 155.0,
+             180.0, 180.0,
+             210.0, 210.0,
+             240.0, 240.0,
+             270.0, 270.0,
+             300.0, 300.0],
+    m_ext = [0.0000, 0.0000,
+             0.1097, 0.0935,
+             0.2571, 0.2265,
+             0.3894, 0.3507,
+             0.5228, 0.4746,
+             0.7872, 0.7270,
+             1.1633, 1.0636,
+             1.4848, 1.3746,
+             1.7484, 1.6411,
+             1.9751, 1.8913,
+             2.2485, 2.1785,
+             2.5630, 2.5539,
+             2.7584, 2.7690,
+             3.0323, 3.0527,
+             3.3022, 3.3416,
+             3.5332, 3.5906,
+             3.7349, 3.8130,
+             3.9260, 4.0177],
+    # Operating conditions
+    temperature       = 333.15,   # K
+    porosity          = 0.7,      # bed porosity (dimensionless)
+    x0                = 0.069,    # total extractable yield (kg/kg)
+    solid_density     = 1.32,     # g/cm³
+    solvent_density   = 0.78023,  # g/cm³
+    flow_rate         = 9.9,      # cm³/min
+    bed_height        = 9.2,      # cm
+    bed_diameter      = 5.42,     # cm
+    particle_diameter = 0.0337,   # cm
+    solid_mass        = 100.01,   # g
+    solubility        = 0.003166, # kg/kg
+    viscosity         = 0.067739, # mPa·s
+)
+
+result = sovova_multi(curve)
+
+# Print fitted parameters
+println("kya  = ", result.kya[1], " 1/s")
+println("kxa  = ", result.kxa[1], " 1/s")
+println("xk   = ", result.xk[1], " kg/kg")
+println("tCER = ", result.tcer[1], " s")
+println("SSR  = ", result.objective)
+```
