@@ -5,8 +5,15 @@ using Test
 
     @testset "ExtractionCurve construction" begin
         curve = ExtractionCurve(
-            t = [5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0],
-            m_ext = [0.1, 0.25, 0.42, 0.58, 0.85, 1.10, 1.28, 1.45, 1.52],
+            data = [5.0  0.1;
+                    10.0 0.25;
+                    15.0 0.42;
+                    20.0 0.58;
+                    30.0 0.85;
+                    45.0 1.10;
+                    60.0 1.28;
+                    90.0 1.45;
+                    120.0 1.52],
             temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
@@ -29,9 +36,10 @@ using Test
     end
 
     @testset "simulate produces non-negative output" begin
+        t_vals = collect(range(5.0, 120.0, length=10))
+        m_vals = collect(range(0.1, 1.5, length=10))
         curve = ExtractionCurve(
-            t = collect(range(5.0, 120.0, length=10)),
-            m_ext = collect(range(0.1, 1.5, length=10)),
+            data = hcat(t_vals, m_vals),
             temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
@@ -57,9 +65,9 @@ using Test
 
     @testset "sovova_multi fitting (single curve)" begin
         # Generate synthetic data with known parameters, then fit
+        t_vals = collect(range(5.0, 180.0, length=15))
         curve_for_gen = ExtractionCurve(
-            t = collect(range(5.0, 180.0, length=15)),
-            m_ext = zeros(15),  # placeholder
+            data = hcat(t_vals, zeros(15)),
             temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
@@ -82,8 +90,7 @@ using Test
 
         # Now create curve with this synthetic data (convert back to user units)
         curve = ExtractionCurve(
-            t = collect(range(5.0, 180.0, length=15)),
-            m_ext = m_ext_true .* 1000.0,  # convert back to g
+            data = hcat(t_vals, m_ext_true .* 1000.0),
             temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
@@ -106,16 +113,24 @@ using Test
 
     @testset "mateus1 experimental data" begin
         curve = ExtractionCurve(
-            t     = [0.0, 0.0, 5.0, 5.0, 10.0, 10.0, 15.0, 15.0, 20.0, 20.0,
-                     30.0, 30.0, 45.0, 45.0, 60.0, 60.0, 75.0, 75.0, 90.0, 90.0,
-                     110.0, 110.0, 135.0, 135.0, 155.0, 155.0, 180.0, 180.0,
-                     210.0, 210.0, 240.0, 240.0, 270.0, 270.0, 300.0, 300.0],
-            m_ext = [0.0000, 0.0000, 0.1097, 0.0935, 0.2571, 0.2265,
-                     0.3894, 0.3507, 0.5228, 0.4746, 0.7872, 0.7270,
-                     1.1633, 1.0636, 1.4848, 1.3746, 1.7484, 1.6411,
-                     1.9751, 1.8913, 2.2485, 2.1785, 2.5630, 2.5539,
-                     2.7584, 2.7690, 3.0323, 3.0527, 3.3022, 3.3416,
-                     3.5332, 3.5906, 3.7349, 3.8130, 3.9260, 4.0177],
+            data = [  0.0   0.0000  0.0000;
+                      5.0   0.1097  0.0935;
+                     10.0   0.2571  0.2265;
+                     15.0   0.3894  0.3507;
+                     20.0   0.5228  0.4746;
+                     30.0   0.7872  0.7270;
+                     45.0   1.1633  1.0636;
+                     60.0   1.4848  1.3746;
+                     75.0   1.7484  1.6411;
+                     90.0   1.9751  1.8913;
+                    110.0   2.2485  2.1785;
+                    135.0   2.5630  2.5539;
+                    155.0   2.7584  2.7690;
+                    180.0   3.0323  3.0527;
+                    210.0   3.3022  3.3416;
+                    240.0   3.5332  3.5906;
+                    270.0   3.7349  3.8130;
+                    300.0   3.9260  4.0177],
             temperature       = 333.15,
             porosity          = 0.7,
             x0                = 0.069,
@@ -141,5 +156,56 @@ using Test
         @test result.tcer[1] > 0
         # Calculated curve should have correct length
         @test length(result.ycal[1]) == 36
+    end
+
+    @testset "TextTable reading" begin
+        data = TextTable(joinpath(@__DIR__, "testdata.txt"))
+        @test size(data) == (8, 3)       # 8 rows, 3 columns (t, rep1, rep2)
+        @test data[1, 1] ≈ 0.0          # first time
+        @test data[2, 2] ≈ 0.1097       # first rep, second row
+        @test data[2, 3] ≈ 0.0935       # second rep, second row
+    end
+
+    @testset "ExcelTable reading" begin
+        data = ExcelTable(joinpath(@__DIR__, "testdata.xlsx"))
+        @test size(data) == (8, 3)       # 8 rows, 3 columns (header skipped)
+        @test data[1, 1] ≈ 0.0
+        @test data[2, 2] ≈ 0.1097
+        @test data[2, 3] ≈ 0.0935
+    end
+
+    @testset "Matrix with replicates expansion" begin
+        # 3 time points, 2 replicates → 6 interleaved data points
+        mat = [0.0  1.0  2.0;
+               5.0  3.0  4.0;
+               10.0 5.0  6.0]
+        curve = ExtractionCurve(
+            data = mat,
+            temperature = 313.15,
+            porosity = 0.4,
+            x0 = 0.05,
+            solid_density = 1.1,
+            solvent_density = 0.8,
+            flow_rate = 5.0,
+            bed_height = 20.0,
+            bed_diameter = 2.0,
+            particle_diameter = 0.05,
+            solid_mass = 50.0,
+            solubility = 0.005,
+            viscosity = 0.06,
+        )
+        # Should have 6 data points (3 rows × 2 replicates)
+        @test length(curve.t) == 6
+        @test length(curve.m_ext) == 6
+        # Times repeated per replicate: [0, 0, 5, 5, 10, 10] in minutes → SI
+        @test curve.t[1] ≈ 0.0 * 60.0
+        @test curve.t[2] ≈ 0.0 * 60.0
+        @test curve.t[3] ≈ 5.0 * 60.0
+        @test curve.t[4] ≈ 5.0 * 60.0
+        # m_ext interleaved: [1, 2, 3, 4, 5, 6] in g → kg
+        @test curve.m_ext[1] ≈ 1.0 / 1000.0
+        @test curve.m_ext[2] ≈ 2.0 / 1000.0
+        @test curve.m_ext[3] ≈ 3.0 / 1000.0
+        @test curve.m_ext[4] ≈ 4.0 / 1000.0
     end
 end

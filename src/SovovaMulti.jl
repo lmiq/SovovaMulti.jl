@@ -1,20 +1,74 @@
 module SovovaMulti
 
 using BlackBoxOptim
+using DelimitedFiles: readdlm
+using XLSX
 
-export ExtractionCurve, SovovaResult, sovova_multi
+export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable
 
 const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)
 
 """
-    ExtractionCurve(; kwargs...)
+    TextTable(filename; kwargs...)
+
+Read a delimited text file and return a `Matrix{Float64}`.
+The expected format is one time column followed by one or more replicate columns:
+
+```
+# t (min)   rep1 (g)   rep2 (g)
+0.0         0.000      0.000
+5.0         0.110      0.094
+10.0        0.257      0.227
+```
+
+Lines starting with `#` are ignored. Keyword arguments are passed to
+`DelimitedFiles.readdlm`.
+
+# Example
+```julia
+data = TextTable("experiment.txt")
+curve = ExtractionCurve(data=data, temperature=313.15, ...)
+```
+"""
+function TextTable(filename::AbstractString; kwargs...)
+    return readdlm(filename, Float64; comments=true, kwargs...)
+end
+
+"""
+    ExcelTable(filename; sheet=1, header=true)
+
+Read an Excel `.xlsx` file and return a `Matrix{Float64}`.
+The expected format is one time column followed by one or more replicate columns.
+
+# Arguments
+- `filename`: path to the `.xlsx` file.
+- `sheet`: sheet index (default: `1`) or name (`String`).
+- `header`: whether the first row contains column headers to skip (default: `true`).
+
+# Example
+```julia
+data = ExcelTable("experiment.xlsx")
+curve = ExtractionCurve(data=data, temperature=313.15, ...)
+```
+"""
+function ExcelTable(filename::AbstractString; sheet::Union{Int,AbstractString}=1, header::Bool=true)
+    xf = XLSX.readxlsx(filename)
+    ws = xf[sheet]
+    raw = ws[:]
+    data = header ? raw[2:end, :] : raw
+    return Float64.(data)
+end
+
+"""
+    ExtractionCurve(; data, temperature, ...)
 
 Experimental extraction curve data and operating conditions for one experiment.
 
 # Required keyword arguments
-- `t::Vector{Float64}`: extraction times (min)
-- `m_ext::Vector{Float64}`: cumulative extracted mass at each time (g)
+- `data::Matrix{Float64}`: table with column 1 = extraction times (min) and
+  columns 2:N = cumulative extracted mass for each replicate (g).
+  A `Matrix` can be read from files with [`TextTable`](@ref) or [`ExcelTable`](@ref).
 - `temperature::Float64`: temperature (K)
 - `porosity::Float64`: bed porosity (dimensionless)
 - `x0::Float64`: total extractable yield (mass fraction, kg/kg)
@@ -33,6 +87,12 @@ Experimental extraction curve data and operating conditions for one experiment.
   If not provided, estimated from Stokes-Einstein equation.
 - `nh::Int`: spatial discretization steps (default: 5)
 - `nt::Int`: temporal discretization steps (default: 2500)
+
+# Example
+```julia
+data = TextTable("experiment.txt")  # or ExcelTable("experiment.xlsx")
+curve = ExtractionCurve(data=data, temperature=313.15, ...)
+```
 """
 struct ExtractionCurve
     # Experimental data (SI units internally)
@@ -58,8 +118,7 @@ struct ExtractionCurve
 end
 
 function ExtractionCurve(;
-    t::Vector{Float64},
-    m_ext::Vector{Float64},
+    data::Matrix{Float64},
     temperature::Float64,
     porosity::Float64,
     x0::Float64,
@@ -76,6 +135,22 @@ function ExtractionCurve(;
     nh::Int = 5,
     nt::Int = 2500,
 )
+    # Extract time column and replicate m_ext columns from the data matrix.
+    # Column 1 = time (min), columns 2:end = replicate m_ext values (g).
+    # Each time is repeated once per replicate to build interleaved vectors.
+    nreps = size(data, 2) - 1
+    nrows = size(data, 1)
+    t = Vector{Float64}(undef, nrows * nreps)
+    m_ext = Vector{Float64}(undef, nrows * nreps)
+    k = 0
+    for i in 1:nrows
+        for j in 1:nreps
+            k += 1
+            t[k] = data[i, 1]
+            m_ext[k] = data[i, j + 1]
+        end
+    end
+
     # Convert from user-friendly units (g, cm, min) to SI (kg, m, s)
     t_si = t .* 60.0
     m_ext_si = m_ext ./ 1000.0

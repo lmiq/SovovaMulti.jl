@@ -5,12 +5,25 @@
 Create an [`ExtractionCurve`](@ref) with your experimental data and operating conditions.
 All inputs use **laboratory units** (g, cm, min, mPa·s) — the package converts to SI internally.
 
+The experimental data is provided as a **matrix** where column 1 is the extraction time (min)
+and columns 2, 3, … are cumulative extracted mass (g) for each replicate:
+
 ```julia
 using SovovaMulti
 
+# Single replicate (2 columns: time, m_ext)
+data = [5.0  0.10;
+        10.0 0.25;
+        15.0 0.42;
+        20.0 0.58;
+        30.0 0.85;
+        45.0 1.10;
+        60.0 1.28;
+        90.0 1.45;
+        120.0 1.52]
+
 curve = ExtractionCurve(
-    t         = [5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0],  # min
-    m_ext     = [0.1, 0.25, 0.42, 0.58, 0.85, 1.10, 1.28, 1.45, 1.52],    # g
+    data           = data,
     temperature    = 313.15,   # K
     porosity       = 0.4,      # dimensionless
     x0             = 0.05,     # kg/kg (total extractable yield)
@@ -24,6 +37,38 @@ curve = ExtractionCurve(
     solubility     = 0.005,    # kg/kg
     viscosity      = 0.06,     # mPa·s (= cP)
 )
+```
+
+## Reading data from files
+
+Instead of typing the data matrix directly, you can read it from a text or Excel file.
+
+### Text files with [`TextTable`](@ref)
+
+A whitespace-delimited text file with an optional comment header (lines starting with `#`):
+
+```
+# t (min)   rep1 (g)   rep2 (g)
+0.0         0.000      0.000
+5.0         0.110      0.094
+10.0        0.257      0.227
+```
+
+```julia
+data = TextTable("experiment.txt")
+curve = ExtractionCurve(data=data, temperature=313.15, ...)
+```
+
+### Excel files with [`ExcelTable`](@ref)
+
+An `.xlsx` file where the first row is a header and the remaining rows contain
+the data matrix (time column + replicate columns):
+
+```julia
+data = ExcelTable("experiment.xlsx")              # reads first sheet, skips header
+data = ExcelTable("experiment.xlsx"; sheet=2)      # read a specific sheet
+data = ExcelTable("experiment.xlsx"; header=false)  # no header row to skip
+curve = ExtractionCurve(data=data, temperature=313.15, ...)
 ```
 
 ### Diffusivity
@@ -88,9 +133,9 @@ Pass a vector of [`ExtractionCurve`](@ref)s to fit all curves at once. Each curv
 own `kya` and `kxa`, but the ratio `xk/x0` is **shared** across all curves:
 
 ```julia
-curve1 = ExtractionCurve(; t=t1, m_ext=m1, temperature=313.15, ...)
-curve2 = ExtractionCurve(; t=t2, m_ext=m2, temperature=323.15, ...)
-curve3 = ExtractionCurve(; t=t3, m_ext=m3, temperature=333.15, ...)
+curve1 = ExtractionCurve(; data=data1, temperature=313.15, ...)
+curve2 = ExtractionCurve(; data=data2, temperature=323.15, ...)
+curve3 = ExtractionCurve(; data=data3, temperature=333.15, ...)
 
 result = sovova_multi([curve1, curve2, curve3])
 ```
@@ -131,51 +176,39 @@ result = sovova_multi(curve; tracemode=:compact)
 ## Complete example with real data
 
 The following example uses experimental data from a supercritical CO₂ extraction experiment
-at 333.15 K (data from Mateus et al.):
+at 333.15 K (data from Mateus et al.), with two replicates:
 
 ```julia
 using SovovaMulti
 
+# Data matrix: column 1 = time (min), columns 2-3 = replicate m_ext (g)
+data = [
+    0.0   0.0000  0.0000;
+    5.0   0.1097  0.0935;
+   10.0   0.2571  0.2265;
+   15.0   0.3894  0.3507;
+   20.0   0.5228  0.4746;
+   30.0   0.7872  0.7270;
+   45.0   1.1633  1.0636;
+   60.0   1.4848  1.3746;
+   75.0   1.7484  1.6411;
+   90.0   1.9751  1.8913;
+  110.0   2.2485  2.1785;
+  135.0   2.5630  2.5539;
+  155.0   2.7584  2.7690;
+  180.0   3.0323  3.0527;
+  210.0   3.3022  3.3416;
+  240.0   3.5332  3.5906;
+  270.0   3.7349  3.8130;
+  300.0   3.9260  4.0177
+]
+
+# Or read from a file:
+# data = TextTable("mateus1.txt")
+# data = ExcelTable("mateus1.xlsx")
+
 curve = ExtractionCurve(
-    # Extraction times (min) and cumulative extracted mass (g)
-    # Duplicate time points correspond to replicate measurements
-    t     = [0.0, 0.0,
-             5.0, 5.0,
-             10.0, 10.0,
-             15.0, 15.0,
-             20.0, 20.0,
-             30.0, 30.0,
-             45.0, 45.0,
-             60.0, 60.0,
-             75.0, 75.0,
-             90.0, 90.0,
-             110.0, 110.0,
-             135.0, 135.0,
-             155.0, 155.0,
-             180.0, 180.0,
-             210.0, 210.0,
-             240.0, 240.0,
-             270.0, 270.0,
-             300.0, 300.0],
-    m_ext = [0.0000, 0.0000,
-             0.1097, 0.0935,
-             0.2571, 0.2265,
-             0.3894, 0.3507,
-             0.5228, 0.4746,
-             0.7872, 0.7270,
-             1.1633, 1.0636,
-             1.4848, 1.3746,
-             1.7484, 1.6411,
-             1.9751, 1.8913,
-             2.2485, 2.1785,
-             2.5630, 2.5539,
-             2.7584, 2.7690,
-             3.0323, 3.0527,
-             3.3022, 3.3416,
-             3.5332, 3.5906,
-             3.7349, 3.8130,
-             3.9260, 4.0177],
-    # Operating conditions
+    data              = data,
     temperature       = 333.15,   # K
     porosity          = 0.7,      # bed porosity (dimensionless)
     x0                = 0.069,    # total extractable yield (kg/kg)

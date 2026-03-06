@@ -23,9 +23,21 @@ or more experimental extraction curves simultaneously. The package:
 ```julia
 using SovovaMulti
 
+# Data matrix: column 1 = time (min), columns 2:N = replicate m_ext (g)
+data = [5.0   0.1;
+        10.0  0.3;
+        20.0  0.6;
+        30.0  0.9;
+        60.0  1.2;
+        90.0  1.4;
+        120.0 1.5]
+
+# Or read from files:
+# data = TextTable("experiment.txt")
+# data = ExcelTable("experiment.xlsx")
+
 curve = ExtractionCurve(
-    t         = [5.0, 10.0, 20.0, 30.0, 60.0, 90.0, 120.0],  # min
-    m_ext     = [0.1, 0.3, 0.6, 0.9, 1.2, 1.4, 1.5],          # g
+    data           = data,
     temperature    = 313.15,   # K
     porosity       = 0.4,
     x0             = 0.05,     # kg/kg

@@ -6,6 +6,13 @@
 ExtractionCurve
 ```
 
+## Data readers
+
+```@docs
+TextTable
+ExcelTable
+```
+
 ## Simulation
 
 ```@docs
