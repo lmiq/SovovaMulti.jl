@@ -26,9 +26,10 @@ Press Ctrl-C in the REPL to stop the server, or call `close(server)` on the
 returned `HTTP.Server` object.
 """
 function sovovagui(; port::Int=9876, launch::Bool=true)
-    include(joinpath(@__DIR__, "gui.jl"))
     _start_gui(port, launch)
 end
+
+include("gui.jl")
 
 """
     TextTable(filename; kwargs...)
