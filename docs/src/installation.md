@@ -4,6 +4,12 @@
 
 ### Windows
 
+#### Option 1
+
+Install Julia directly from the Windows Store. Double click on the Julia icon to open the Julia REPL.
+
+#### Option 2
+
 1. Download the Julia installer from [https://julialang.org/downloads/](https://julialang.org/downloads/).
    Choose the **Windows** 64-bit installer (`.exe`).
 
@@ -19,11 +25,6 @@
    You should see something like `julia version 1.10.x` or later.
 
 !!! tip "Windows tips"
-    - If you prefer not to use the installer, you can use [juliaup](https://github.com/JuliaLang/juliaup),
-      which is also available from the **Microsoft Store**. Just search for "Julia" in the Store,
-      install it, and `julia` will be available from any terminal.
-    - On Windows, the first time Julia compiles a package it may take a bit longer than on
-      Linux/macOS. This is normal — subsequent uses will be much faster thanks to precompilation.
     - If you use **VS Code**, install the
       [Julia extension](https://marketplace.visualstudio.com/items?itemName=julialang.language-julia)
       for syntax highlighting, inline evaluation, and an integrated REPL.
@@ -63,14 +64,6 @@ Or, equivalently, press `]` in the Julia REPL to enter the package manager mode 
 
 ```
 pkg> add SovovaMulti
-```
-
-To install the development version directly from GitHub:
-
-```julia
-julia> import Pkg
-
-julia> Pkg.add(url="https://github.com/lmiq/SovovaMulti.jl")
 ```
 
 ### Verifying the installation
