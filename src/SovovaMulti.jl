@@ -3,6 +3,8 @@ module SovovaMulti
 using BlackBoxOptim
 using DelimitedFiles: readdlm
 using XLSX
+using HTTP
+using JSON3
 
 export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable, sovovagui
 
@@ -10,12 +12,23 @@ const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)
 
 """
-    sovovagui()
+    sovovagui(; port=9876, launch=true)
 
-Launch a graphical user interface for SovovaMulti.
-Requires the Blink.jl package: `using Blink` before calling this function.
+Launch a local web-based GUI for SovovaMulti.
+
+Opens a browser window at `http://localhost:\$port` where you can:
+- Upload a data file (text or Excel) with time and replicate columns
+- Fill in all operating conditions
+- Configure optimizer bounds and maximum evaluations
+- Run the fitting and see results directly in the browser
+
+Press Ctrl-C in the REPL to stop the server, or call `close(server)` on the
+returned `HTTP.Server` object.
 """
-function sovovagui end
+function sovovagui(; port::Int=9876, launch::Bool=true)
+    include(joinpath(@__DIR__, "gui.jl"))
+    _start_gui(port, launch)
+end
 
 """
     TextTable(filename; kwargs...)
