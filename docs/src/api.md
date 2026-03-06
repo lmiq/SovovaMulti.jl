@@ -30,3 +30,9 @@ sovova_multi
 ```@docs
 SovovaResult
 ```
+
+## Graphical Interface
+
+```@docs
+sovovagui
+```

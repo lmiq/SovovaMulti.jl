@@ -232,3 +232,23 @@ println("xk   = ", result.xk[1], " kg/kg")
 println("tCER = ", result.tcer[1], " s")
 println("SSR  = ", result.objective)
 ```
+
+## Graphical User Interface
+
+SovovaMulti includes an optional GUI built with [Blink.jl](https://github.com/JuliaGizmos/Blink.jl).
+Install Blink and launch the interface:
+
+```julia
+using Pkg
+Pkg.add("Blink")
+
+using SovovaMulti
+using Blink
+sovovagui()
+```
+
+The GUI opens a window where you can:
+- Upload a data file (text or Excel) with time and replicate columns
+- Fill in all operating conditions through form fields
+- Configure optimizer bounds and maximum evaluations
+- Run the fitting and see results directly in the interface

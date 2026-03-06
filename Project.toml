@@ -8,13 +8,21 @@ BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 
+[weakdeps]
+Blink = "ad839575-38b3-5650-b840-f874b8c74a25"
+
+[extensions]
+SovovaMultiBlinkExt = "Blink"
+
 [compat]
 BlackBoxOptim = "0.6"
+Blink = "0.12"
 DelimitedFiles = "1.9.1"
 XLSX = "0.10.4"
 julia = "1.10"
 
 [extras]
+Blink = "ad839575-38b3-5650-b840-f874b8c74a25"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]

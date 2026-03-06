@@ -4,10 +4,18 @@ using BlackBoxOptim
 using DelimitedFiles: readdlm
 using XLSX
 
-export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable
+export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable, sovovagui
 
 const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)
+
+"""
+    sovovagui()
+
+Launch a graphical user interface for SovovaMulti.
+Requires the Blink.jl package: `using Blink` before calling this function.
+"""
+function sovovagui end
 
 """
     TextTable(filename; kwargs...)
@@ -33,6 +41,9 @@ curve = ExtractionCurve(data=data, temperature=313.15, ...)
 """
 function TextTable(filename::AbstractString; kwargs...)
     return readdlm(filename, Float64; comments=true, kwargs...)
+end
+function TextTable(io::IO; kwargs...)
+    return readdlm(io, Float64; comments=true, kwargs...)
 end
 
 """
