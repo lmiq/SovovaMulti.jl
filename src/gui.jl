@@ -3,7 +3,8 @@
 using Printf
 
 # ── Uploaded data cache ──────────────────────────────────────────────
-const _gui_data = Ref{Union{Nothing,Matrix{Float64}}}(nothing)
+const _gui_data   = Ref{Union{Nothing,Matrix{Float64}}}(nothing)
+const _gui_result = Ref{Any}(nothing)  # holds (SovovaResult, ExtractionCurve) after a run
 
 # ── HTML page ────────────────────────────────────────────────────────
 const _GUI_HTML = raw"""
@@ -34,6 +35,10 @@ button:disabled{background:#93c5fd;cursor:not-allowed}
 #status{text-align:center;margin:8px 0;font-size:.9rem;color:#4b5563;min-height:1.4em}
 #results{white-space:pre-wrap;font-family:'Fira Code',monospace;font-size:.84rem;
   background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;display:none;margin-top:10px}
+.dl-row{display:none;justify-content:center;gap:12px;margin:12px 0}
+.dl-btn{display:inline-block;border-radius:6px;padding:9px 22px;font-size:.9rem;
+  font-weight:600;color:#fff;background:#059669;text-decoration:none;transition:background .15s}
+.dl-btn:hover{background:#047857}
 table.preview{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
 table.preview th,table.preview td{border:1px solid #e5e7eb;padding:3px 6px;text-align:right}
 table.preview th{background:#f3f4f6}
@@ -92,6 +97,10 @@ table.preview th{background:#f3f4f6}
 </div>
 <div id="status"></div>
 <pre id="results"></pre>
+<div id="dlrow" class="dl-row">
+  <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
+  <a href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
+</div>
 
 </div><!-- container -->
 <script>
@@ -124,6 +133,7 @@ $('datafile').addEventListener('change', async e => {
     html += '</table>';
     $('preview').innerHTML = html;
     $('runbtn').disabled = false;
+    $('dlrow').style.display = 'none';
     $('status').textContent = 'Data loaded: ' + rows.length + ' rows × ' + rows[0].length + ' columns.';
   } catch(err) { $('status').textContent = 'Upload failed: ' + err.message; }
 });
@@ -141,6 +151,7 @@ $('runbtn').addEventListener('click', async () => {
     body[id] = v;
   }
   $('runbtn').disabled = true;
+  $('dlrow').style.display = 'none';
   $('status').textContent = 'Running optimizer — this may take a minute…';
   $('results').style.display = 'none';
   try {
@@ -153,6 +164,7 @@ $('runbtn').addEventListener('click', async () => {
     $('status').textContent = 'Done!';
     $('results').style.display = 'block';
     $('results').textContent = json.report;
+    $('dlrow').style.display = 'flex';
   } catch(err) { $('status').textContent = 'Error: ' + err.message; }
   $('runbtn').disabled = false;
 });
@@ -241,6 +253,7 @@ function _start_gui(port::Int, launch::Bool)
                 maxevals        = Int(p[:maxevals]),
                 tracemode       = :silent,
             )
+            _gui_result[] = (result, curve)
 
             report = sprint() do io
                 println(io, "══════════════════════════════════════")
@@ -271,6 +284,28 @@ function _start_gui(port::Int, launch::Bool)
         catch e
             return HTTP.Response(200, ["Content-Type" => "application/json"],
                 JSON3.write(Dict("error" => sprint(showerror, e))))
+        end
+    end)
+
+    # Download results endpoint
+    HTTP.register!(router, "GET", "/api/download", function(req)
+        cached = _gui_result[]
+        cached === nothing && return HTTP.Response(400, "No results yet — run the fitting first.")
+        result, curve = cached
+        fmt = contains(req.target, "format=xlsx") ? "xlsx" : "txt"
+        tmpfile = tempname() * "." * fmt
+        try
+            export_results(tmpfile, result, curve)
+            body = read(tmpfile)
+            mime = fmt == "xlsx" ?
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" :
+                "text/plain; charset=utf-8"
+            return HTTP.Response(200,
+                ["Content-Type"        => mime,
+                 "Content-Disposition" => "attachment; filename=\"SovovaMulti_results.$fmt\""],
+                body)
+        finally
+            rm(tmpfile; force=true)
         end
     end)
 
