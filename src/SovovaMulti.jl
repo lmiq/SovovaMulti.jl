@@ -6,7 +6,7 @@ using XLSX
 using HTTP
 using JSON3
 
-export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable, sovovagui
+export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable, sovovagui, create_shortcut
 
 const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)
@@ -27,6 +27,176 @@ returned `HTTP.Server` object.
 """
 function sovovagui(; port::Int=9876, launch::Bool=true)
     _start_gui(port, launch)
+end
+
+"""
+    julia -m SovovaMulti [--port PORT] [--no-launch]
+
+Launch the SovovaMulti GUI as a standalone app.
+"""
+function (@main)(args::Vector{String})
+    port = 9876
+    launch = true
+    i = 1
+    while i <= length(args)
+        if args[i] == "--port" && i + 1 <= length(args)
+            port = parse(Int, args[i + 1])
+            i += 2
+        elseif args[i] == "--no-launch"
+            launch = false
+            i += 1
+        else
+            i += 1
+        end
+    end
+    server = sovovagui(; port, launch)
+    wait(server)
+    return 0
+end
+
+"""
+    create_shortcut(; location=:desktop, port=9876, name="SovovaMulti")
+
+Create a launcher shortcut for the SovovaMulti GUI. Supports Windows, macOS, and Linux.
+
+# Keyword arguments
+- `location`: where to install the shortcut:
+  - Windows: `:desktop` (default) or `:startmenu`
+  - macOS:   `:desktop` (default) or `:applications` (`/Applications`)
+  - Linux:   `:desktop` (default) or `:applications` (`~/.local/share/applications`)
+- `port`: port passed to the app (default: `9876`).
+- `name`: shortcut name (default: `"SovovaMulti"`).
+
+# Example
+```julia
+using SovovaMulti
+create_shortcut()                          # desktop shortcut, default port
+create_shortcut(location=:applications)    # app menu entry
+create_shortcut(port=8080, name="SFE Fit")
+```
+"""
+function create_shortcut(; location::Symbol=:desktop, port::Int=9876, name::String="SovovaMulti")
+    if Sys.iswindows()
+        _create_shortcut_windows(; location, port, name)
+    elseif Sys.isapple()
+        _create_shortcut_macos(; location, port, name)
+    else
+        _create_shortcut_linux(; location, port, name)
+    end
+end
+
+function _create_shortcut_windows(; location, port, name)
+    julia_exe = joinpath(Sys.BINDIR, "julia.exe")
+    isfile(julia_exe) || error("Could not locate julia.exe at $julia_exe")
+
+    dest_dir = if location == :desktop
+        # Use PowerShell to get the actual (possibly redirected) Desktop path
+        strip(read(`powershell -NoProfile -NonInteractive -Command "[Environment]::GetFolderPath('Desktop')"`, String))
+    elseif location == :startmenu
+        strip(read(`powershell -NoProfile -NonInteractive -Command "[Environment]::GetFolderPath('Programs')"`, String))
+    else
+        error("Unknown location $location. Use :desktop or :startmenu.")
+    end
+
+    isdir(dest_dir) || error("Destination directory not found: $dest_dir")
+    lnk = joinpath(dest_dir, name * ".lnk")
+
+    esc(s) = replace(s, "'" => "''")
+    ps = """
+    \$ws = New-Object -ComObject WScript.Shell
+    \$sc = \$ws.CreateShortcut('$(esc(lnk))')
+    \$sc.TargetPath      = '$(esc(julia_exe))'
+    \$sc.Arguments       = '-m SovovaMulti --port $port'
+    \$sc.WorkingDirectory = '$(esc(homedir()))'
+    \$sc.Description     = 'Launch SovovaMulti GUI'
+    \$sc.IconLocation    = '$(esc(julia_exe))'
+    \$sc.Save()
+    """
+    run(`powershell -NoProfile -NonInteractive -Command $ps`)
+    @info "Shortcut created: $lnk"
+    return lnk
+end
+
+function _create_shortcut_macos(; location, port, name)
+    julia_bin = joinpath(Sys.BINDIR, "julia")
+    isfile(julia_bin) || error("Could not locate julia at $julia_bin")
+
+    dest_dir = if location == :desktop
+        joinpath(homedir(), "Desktop")
+    elseif location == :applications
+        "/Applications"
+    else
+        error("Unknown location $location. Use :desktop or :applications.")
+    end
+
+    isdir(dest_dir) || error("Destination directory not found: $dest_dir")
+    app_path = joinpath(dest_dir, name * ".app")
+
+    macos_dir = joinpath(app_path, "Contents", "MacOS")
+    mkpath(macos_dir)
+
+    # Executable shell script inside the bundle
+    script = joinpath(macos_dir, name)
+    write(script, """
+    #!/bin/sh
+    exec '$(replace(julia_bin, "'" => "\\'"))' -m SovovaMulti --port $port
+    """)
+    chmod(script, 0o755)
+
+    # Minimal Info.plist
+    write(joinpath(app_path, "Contents", "Info.plist"), """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+      "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0"><dict>
+      <key>CFBundleName</key>              <string>$name</string>
+      <key>CFBundleExecutable</key>        <string>$name</string>
+      <key>CFBundleIdentifier</key>        <string>org.julialang.sovovamulti</string>
+      <key>CFBundleVersion</key>           <string>1.0</string>
+      <key>CFBundlePackageType</key>       <string>APPL</string>
+      <key>LSUIElement</key>               <false/>
+    </dict></plist>
+    """)
+
+    @info "App bundle created: $app_path"
+    return app_path
+end
+
+function _create_shortcut_linux(; location, port, name)
+    julia_bin = joinpath(Sys.BINDIR, "julia")
+    isfile(julia_bin) || error("Could not locate julia at $julia_bin")
+
+    dest_dir = if location == :desktop
+        joinpath(homedir(), "Desktop")
+    elseif location == :applications
+        joinpath(homedir(), ".local", "share", "applications")
+    else
+        error("Unknown location $location. Use :desktop or :applications.")
+    end
+
+    mkpath(dest_dir)
+    desktop_file = joinpath(dest_dir, name * ".desktop")
+
+    write(desktop_file, """
+    [Desktop Entry]
+    Version=1.0
+    Type=Application
+    Name=$name
+    Comment=Sovová supercritical extraction model — multi-curve fitting
+    Exec=$julia_bin -m SovovaMulti --port $port
+    Terminal=false
+    Categories=Science;Education;
+    """)
+    chmod(desktop_file, 0o755)
+
+    # Mark as trusted on GNOME (suppresses the "untrusted launcher" dialog)
+    try
+        run(`gio set $desktop_file metadata::trusted true`)
+    catch
+    end
+
+    @info "Desktop entry created: $desktop_file"
+    return desktop_file
 end
 
 include("gui.jl")
