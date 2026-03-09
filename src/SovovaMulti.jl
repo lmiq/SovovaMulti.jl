@@ -86,12 +86,17 @@ function create_shortcut(; location::Symbol=:desktop, port::Int=9876, name::Stri
     end
 end
 
+# Returns the path to the Pkg.Apps-installed binary if present, otherwise nothing.
+function _installed_app_exe(appname::String)
+    p = joinpath(homedir(), ".julia", "bin", appname)
+    isfile(p) ? p : nothing
+end
+
 function _create_shortcut_windows(; location, port, name)
     julia_exe = joinpath(Sys.BINDIR, "julia.exe")
     isfile(julia_exe) || error("Could not locate julia.exe at $julia_exe")
 
     dest_dir = if location == :desktop
-        # Use PowerShell to get the actual (possibly redirected) Desktop path
         strip(read(`powershell -NoProfile -NonInteractive -Command "[Environment]::GetFolderPath('Desktop')"`, String))
     elseif location == :startmenu
         strip(read(`powershell -NoProfile -NonInteractive -Command "[Environment]::GetFolderPath('Programs')"`, String))
@@ -102,12 +107,23 @@ function _create_shortcut_windows(; location, port, name)
     isdir(dest_dir) || error("Destination directory not found: $dest_dir")
     lnk = joinpath(dest_dir, name * ".lnk")
 
+    # Prefer the Pkg.Apps-installed .cmd wrapper if available
+    app_cmd = let p = joinpath(homedir(), ".julia", "bin", "sovovamulti.cmd")
+        isfile(p) ? p : nothing
+    end
+
     esc(s) = replace(s, "'" => "''")
+    target, args = if app_cmd !== nothing
+        "cmd.exe", "/c \"$(esc(app_cmd))\" --port $port"
+    else
+        esc(julia_exe), "-m SovovaMulti --port $port"
+    end
+
     ps = """
     \$ws = New-Object -ComObject WScript.Shell
     \$sc = \$ws.CreateShortcut('$(esc(lnk))')
-    \$sc.TargetPath      = '$(esc(julia_exe))'
-    \$sc.Arguments       = '-m SovovaMulti --port $port'
+    \$sc.TargetPath      = '$target'
+    \$sc.Arguments       = '$args'
     \$sc.WorkingDirectory = '$(esc(homedir()))'
     \$sc.Description     = 'Launch SovovaMulti GUI'
     \$sc.IconLocation    = '$(esc(julia_exe))'
@@ -119,9 +135,6 @@ function _create_shortcut_windows(; location, port, name)
 end
 
 function _create_shortcut_macos(; location, port, name)
-    julia_bin = joinpath(Sys.BINDIR, "julia")
-    isfile(julia_bin) || error("Could not locate julia at $julia_bin")
-
     dest_dir = if location == :desktop
         joinpath(homedir(), "Desktop")
     elseif location == :applications
@@ -132,19 +145,23 @@ function _create_shortcut_macos(; location, port, name)
 
     isdir(dest_dir) || error("Destination directory not found: $dest_dir")
     app_path = joinpath(dest_dir, name * ".app")
-
     macos_dir = joinpath(app_path, "Contents", "MacOS")
     mkpath(macos_dir)
 
-    # Executable shell script inside the bundle
+    # Prefer the Pkg.Apps-installed binary; fall back to julia -m
+    launcher = let p = _installed_app_exe("sovovamulti")
+        if p !== nothing
+            "exec '$(replace(p, "'" => "\\'"))' --port $port"
+        else
+            julia_bin = joinpath(Sys.BINDIR, "julia")
+            "exec '$(replace(julia_bin, "'" => "\\'"))' -m SovovaMulti --port $port"
+        end
+    end
+
     script = joinpath(macos_dir, name)
-    write(script, """
-    #!/bin/sh
-    exec '$(replace(julia_bin, "'" => "\\'"))' -m SovovaMulti --port $port
-    """)
+    write(script, "#!/bin/sh\n$launcher\n")
     chmod(script, 0o755)
 
-    # Minimal Info.plist
     write(joinpath(app_path, "Contents", "Info.plist"), """
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -164,9 +181,6 @@ function _create_shortcut_macos(; location, port, name)
 end
 
 function _create_shortcut_linux(; location, port, name)
-    julia_bin = joinpath(Sys.BINDIR, "julia")
-    isfile(julia_bin) || error("Could not locate julia at $julia_bin")
-
     dest_dir = if location == :desktop
         joinpath(homedir(), "Desktop")
     elseif location == :applications
@@ -178,13 +192,23 @@ function _create_shortcut_linux(; location, port, name)
     mkpath(dest_dir)
     desktop_file = joinpath(dest_dir, name * ".desktop")
 
+    # Prefer the Pkg.Apps-installed binary; fall back to julia -m
+    exec_cmd = let p = _installed_app_exe("sovovamulti")
+        if p !== nothing
+            "$p --port $port"
+        else
+            julia_bin = joinpath(Sys.BINDIR, "julia")
+            "$julia_bin -m SovovaMulti --port $port"
+        end
+    end
+
     write(desktop_file, """
     [Desktop Entry]
     Version=1.0
     Type=Application
     Name=$name
     Comment=Sovová supercritical extraction model — multi-curve fitting
-    Exec=$julia_bin -m SovovaMulti --port $port
+    Exec=$exec_cmd
     Terminal=false
     Categories=Science;Education;
     """)
