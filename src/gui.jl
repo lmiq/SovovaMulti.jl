@@ -366,8 +366,23 @@ function _start_gui(port::Int, launch::Bool)
         end
     end)
 
-    server = HTTP.serve!(router, HTTP.Sockets.localhost, port)
-    url = "http://127.0.0.1:$port"
+    # Bind to the first available port starting from `port`
+    server = nothing
+    actual_port = port
+    for p in port:(port + 100)
+        try
+            server = HTTP.serve!(router, HTTP.Sockets.localhost, p)
+            actual_port = p
+            break
+        catch e
+            occursin("address already in use", lowercase(sprint(showerror, e))) ||
+                occursin("eaddrinuse", lowercase(sprint(showerror, e))) ||
+                rethrow(e)
+        end
+    end
+    server === nothing && error("Could not find a free port in range $(port)–$(port+100)")
+    url = "http://127.0.0.1:$actual_port"
+    actual_port != port && @info "Port $port was busy; using $actual_port instead"
     @info "SovovaMulti GUI running at $url — press Ctrl-C to stop"
 
     if launch

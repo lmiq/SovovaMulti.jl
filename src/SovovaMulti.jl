@@ -27,21 +27,7 @@ Press Ctrl-C in the REPL to stop the server, or call `close(server)` on the
 returned `HTTP.Server` object.
 """
 function sovovagui(; port::Int=9876, launch::Bool=true)
-    port = _find_free_port(port)
     _start_gui(port, launch)
-end
-
-# Try `start` first; if taken, scan upward until a free port is found.
-function _find_free_port(start::Int)
-    for p in start:(start + 100)
-        try
-            srv = HTTP.Sockets.listen(HTTP.Sockets.localhost, p)
-            close(srv)
-            return p
-        catch
-        end
-    end
-    error("Could not find a free port in range $(start)–$(start+100)")
 end
 
 """
