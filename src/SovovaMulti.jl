@@ -355,8 +355,6 @@ function _export_xlsx(filename, result, curves)
     end
 end
 
-include("gui.jl")
-
 """
     TextTable(filename; kwargs...)
 
@@ -760,5 +758,7 @@ function sovova_multi(
         ycal_all, best_f,
     )
 end
+
+include("gui.jl")
 
 end
