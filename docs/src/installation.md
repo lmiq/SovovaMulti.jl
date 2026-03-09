@@ -50,15 +50,19 @@ curl -fsSL https://install.julialang.org | sh
 Or download the tarball from [https://julialang.org/downloads/](https://julialang.org/downloads/)
 and extract it to a directory of your choice, adding the `bin/` subdirectory to your `PATH`.
 
-## Installing SovovaMulti.jl
+## Installing SovovaMulti.jl GUI mode
 
 Currently, the development version can be installed with:
 
 ```julia
-julia> import Pkg
+julia> import Pkg; Pkg.Apps.add(url="https://github.com/lmiq/SovovaMulti.jl")
 
-julia> Pkg.add(url="https://github.com/lmiq/SovovaMulti.jl")
+julia> using SovovaMulti; create_shortcut()
 ```
+
+This will create a shortcut in the Desktop, from which you can start the application GUI.
+
+# Other options
 
 Once Julia is installed, start a Julia session and run:
 
