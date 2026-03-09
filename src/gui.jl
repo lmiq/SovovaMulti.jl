@@ -200,6 +200,65 @@ function _parse_upload(req::HTTP.Request)
     return data
 end
 
+# ── App-mode browser launcher ────────────────────────────────────
+# Try to open `url` in a Chromium-based browser using --app=URL so it
+# appears as a frameless app window (no address bar, no tabs).
+# Falls back to the system default browser if no Chromium browser is found.
+function _open_app_window(url::String)
+    if Sys.iswindows()
+        candidates = [
+            joinpath(get(ENV, "ProgramFiles", "C:\\Program Files"),
+                "Google\\Chrome\\Application\\chrome.exe"),
+            joinpath(get(ENV, "ProgramFiles(x86)", "C:\\Program Files (x86)"),
+                "Google\\Chrome\\Application\\chrome.exe"),
+            joinpath(get(ENV, "ProgramFiles", "C:\\Program Files"),
+                "Microsoft\\Edge\\Application\\msedge.exe"),
+            joinpath(get(ENV, "ProgramFiles(x86)", "C:\\Program Files (x86)"),
+                "Microsoft\\Edge\\Application\\msedge.exe"),
+            joinpath(get(ENV, "LOCALAPPDATA", ""),
+                "Google\\Chrome\\Application\\chrome.exe"),
+        ]
+        exe = findfirst(isfile, candidates)
+        if exe !== nothing
+            run(Cmd([candidates[exe], "--app=$url"]), wait=false)
+        else
+            run(`cmd /c start $url`, wait=false)
+        end
+
+    elseif Sys.isapple()
+        candidates = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+        exe = findfirst(isfile, candidates)
+        if exe !== nothing
+            run(Cmd([candidates[exe], "--app=$url"]), wait=false)
+        else
+            run(`open $url`, wait=false)
+        end
+
+    else  # Linux / BSD
+        chromium_names = ["google-chrome", "google-chrome-stable",
+                          "chromium-browser", "chromium",
+                          "microsoft-edge", "microsoft-edge-stable",
+                          "brave-browser"]
+        found = nothing
+        for c in chromium_names
+            p = Sys.which(c)
+            if p !== nothing
+                found = p
+                break
+            end
+        end
+        if found !== nothing
+            run(Cmd([found, "--app=$url"]), wait=false)
+        else
+            run(`xdg-open $url`, wait=false)
+        end
+    end
+end
+
 # ── Start GUI server ─────────────────────────────────────────────
 function _start_gui(port::Int, launch::Bool)
     router = HTTP.Router()
@@ -313,13 +372,7 @@ function _start_gui(port::Int, launch::Bool)
 
     if launch
         try
-            if Sys.iswindows()
-                run(`cmd /c start $url`)
-            elseif Sys.isapple()
-                run(`open $url`)
-            else
-                run(`xdg-open $url`)
-            end
+            _open_app_window(url)
         catch
             @info "Could not open browser automatically. Open $url manually."
         end
