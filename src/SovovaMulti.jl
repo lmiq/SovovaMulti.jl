@@ -108,29 +108,43 @@ function _create_shortcut_windows(; location, port, name)
     lnk = joinpath(dest_dir, name * ".lnk")
 
     # Prefer the Pkg.Apps-installed .cmd wrapper if available
-    app_cmd = let p = joinpath(homedir(), ".julia", "bin", "sovovamulti.cmd")
+    julia_bin_dir = joinpath(homedir(), ".julia", "bin")
+    app_cmd = let p = joinpath(julia_bin_dir, "sovovamulti.cmd")
         isfile(p) ? p : nothing
     end
 
-    esc(s) = replace(s, "'" => "''")
-    target, args = if app_cmd !== nothing
-        "cmd.exe", "/c \"$(esc(app_cmd))\" --port $port"
+    # The command line executed by the VBScript launcher
+    cmd_to_run = if app_cmd !== nothing
+        "\"$(app_cmd)\" --port $port"
     else
-        esc(julia_exe), "-m SovovaMulti --port $port"
+        "\"$(julia_exe)\" -m SovovaMulti --port $port"
     end
+
+    # Write a VBScript that runs the app with no visible console window (style 0)
+    vbs_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.vbs")
+    mkpath(julia_bin_dir)
+    # Double the inner quotes so they survive the cmd /c quoting layer
+    cmd_escaped = replace(cmd_to_run, "\"" => "\"\"")
+    write(vbs_path,
+        "Set WshShell = CreateObject(\"WScript.Shell\")\r\n" *
+        "WshShell.Run \"cmd /c $(cmd_escaped)\", 0, False\r\n")
+
+    # wscript.exe (full path) runs the .vbs without a console window
+    wscript = joinpath(get(ENV, "SystemRoot", "C:\\Windows"), "System32", "wscript.exe")
+    esc(s) = replace(s, "'" => "''")
 
     ps = """
     \$ws = New-Object -ComObject WScript.Shell
     \$sc = \$ws.CreateShortcut('$(esc(lnk))')
-    \$sc.TargetPath      = '$target'
-    \$sc.Arguments       = '$args'
+    \$sc.TargetPath      = '$(esc(wscript))'
+    \$sc.Arguments       = '"$(esc(vbs_path))"'
     \$sc.WorkingDirectory = '$(esc(homedir()))'
     \$sc.Description     = 'Launch SovovaMulti GUI'
     \$sc.IconLocation    = '$(esc(julia_exe))'
     \$sc.Save()
     """
     run(`powershell -NoProfile -NonInteractive -Command $ps`)
-    @info "Shortcut created: $lnk"
+    @info "Shortcut created: $lnk  (launcher: $vbs_path)"
     return lnk
 end
 
