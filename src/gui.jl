@@ -1,7 +1,5 @@
 ## GUI implementation for SovovaMulti — served via HTTP.jl + JSON3.jl
 
-using Printf
-
 # ── Uploaded data cache ──────────────────────────────────────────────
 const _gui_data   = Ref{Union{Nothing,Matrix{Float64}}}(nothing)
 const _gui_result = Ref{Any}(nothing)  # holds (SovovaResult, ExtractionCurve) after a run
