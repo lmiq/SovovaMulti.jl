@@ -113,38 +113,42 @@ function _create_shortcut_windows(; location, port, name)
         isfile(p) ? p : nothing
     end
 
-    # The command line executed by the VBScript launcher
-    cmd_to_run = if app_cmd !== nothing
-        "\"$(app_cmd)\" --port $port"
-    else
-        "\"$(julia_exe)\" -m SovovaMulti --port $port"
-    end
+    app_to_run = something(app_cmd, julia_exe)  # .cmd path or julia.exe as fallback
 
-    # Write a VBScript that runs the app with no visible console window (style 0)
-    vbs_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.vbs")
+    # Write a small .ps1 launcher — PowerShell supports -WindowStyle Hidden natively,
+    # which is more reliable than VBScript on modern Windows.
+    ps1_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.ps1")
     mkpath(julia_bin_dir)
-    # Double the inner quotes so they survive the cmd /c quoting layer
-    cmd_escaped = replace(cmd_to_run, "\"" => "\"\"")
-    write(vbs_path,
-        "Set WshShell = CreateObject(\"WScript.Shell\")\r\n" *
-        "WshShell.Run \"cmd /c $(cmd_escaped)\", 0, False\r\n")
+    ps1_args = if app_cmd !== nothing
+        "--port $port"
+    else
+        "-m SovovaMulti --port $port"
+    end
+    # Single-quote the path for PowerShell (escape embedded single quotes)
+    ps1_exe_q = replace(app_to_run, "'" => "''")
+    write(ps1_path, "& '$ps1_exe_q' $ps1_args\r\n")
 
-    # wscript.exe (full path) runs the .vbs without a console window
-    wscript = joinpath(get(ENV, "SystemRoot", "C:\\Windows"), "System32", "wscript.exe")
-    esc(s) = replace(s, "'" => "''")
+    # PowerShell executable (always present on Win 7+)
+    powershell_exe = joinpath(get(ENV, "SystemRoot", "C:\\Windows"),
+        "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+
+    esc(s) = replace(s, "'" => "''")  # escape for PS single-quoted strings
+    # Build the Arguments string that will be stored in the .lnk
+    # The ps1_path goes inside double-quotes so spaces in the path are handled.
+    lnk_args = "-WindowStyle Hidden -ExecutionPolicy Bypass -File \"$(replace(ps1_path, "\"" => "\\\""))\""
 
     ps = """
     \$ws = New-Object -ComObject WScript.Shell
     \$sc = \$ws.CreateShortcut('$(esc(lnk))')
-    \$sc.TargetPath      = '$(esc(wscript))'
-    \$sc.Arguments       = '"$(esc(vbs_path))"'
+    \$sc.TargetPath      = '$(esc(powershell_exe))'
+    \$sc.Arguments       = '$(replace(lnk_args, "'" => "''"))'
     \$sc.WorkingDirectory = '$(esc(homedir()))'
     \$sc.Description     = 'Launch SovovaMulti GUI'
     \$sc.IconLocation    = '$(esc(julia_exe))'
     \$sc.Save()
     """
     run(`powershell -NoProfile -NonInteractive -Command $ps`)
-    @info "Shortcut created: $lnk  (launcher: $vbs_path)"
+    @info "Shortcut created: $lnk  (launcher: $ps1_path)"
     return lnk
 end
 
