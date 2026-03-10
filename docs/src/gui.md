@@ -15,9 +15,13 @@ This starts a local HTTP server and opens your default browser at `http://127.0.
 In the browser interface you can:
 
 - **Upload** a data file (`.txt`, `.csv`, `.dat`, or `.xlsx`) with time and replicate columns
+- **Select** a kinetic model from a dropdown (Sovová, Reverchon, Esquível, Zekovic, Nguyen,
+  Veljković & Milenović, PKM, or Spline)
 - **Fill in** all operating conditions through form fields (temperature, porosity, densities, etc.)
-- **Configure** optimizer bounds and maximum evaluations
+- **Configure** optimizer bounds for each model's parameters (bounds update automatically when
+  the model is changed) and set the maximum number of evaluations
 - **Run** the fitting and see results directly in the browser
+- **Download** the results as a `.txt` or `.xlsx` file
 
 No Julia code required — everything is done through the graphical form.
 

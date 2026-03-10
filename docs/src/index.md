@@ -1,6 +1,6 @@
 # SovovaMulti.jl
 
-*Multi-curve fitting of the Sovová supercritical fluid extraction model.*
+*Kinetic model fitting for supercritical fluid extraction.*
 
 [![Build Status](https://github.com/lmiq/SovovaMulti.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/lmiq/SovovaMulti.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/stable/)
@@ -8,27 +8,34 @@
 
 ## Overview
 
-SovovaMulti.jl fits the Sovová (1994) model of supercritical fluid extraction (SFE) to one
-or more experimental extraction curves simultaneously. The package:
+SovovaMulti.jl fits kinetic models for supercritical fluid extraction (SFE) to one or more
+experimental extraction curves. The package:
 
 - Accepts experimental data and operating conditions in **laboratory units** (g, cm, min).
-- Solves the Sovová partial-differential-equation model numerically (finite differences).
-- Fits per-curve mass transfer coefficients (`kya`, `kxa`) and a shared easily-accessible
-  solute ratio (`xk/x0`) using global optimization from
-  [BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl).
-- No need for manual multi-start — the optimizer handles global search automatically.
+- Supports **8 kinetic models**, from a rigorous PDE model to simple empirical correlations.
+- Fits model parameters using global optimization from
+  [BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl) — no manual
+  multi-start needed.
+- Provides a **graphical interface** accessible via desktop shortcut or `sovovagui()`.
 
-### References
+## Supported models
 
-The methodology implemented in this package is described in the following publications:
+| Model | Parameters | Description |
+|-------|-----------|-------------|
+| Sovová (1994) | `kya`, `kxa`, `xk/x0` | PDE — broken & intact cells; multi-curve with shared `xk/x0` |
+| Reverchon (1993) | `k1` | Empirical — single exponential |
+| Esquível (1999) | `k1` | Empirical — single exponential |
+| Zekovic (2003) | `k1`, `k2` | Empirical — accessible fraction × exponential |
+| Nguyen (1991) | `k1` | Empirical — solid-phase resistance |
+| Veljković & Milenović (2002) | `k1`, `k2`, `k3` | Two-phase leakage + diffusion |
+| PKM — Maksimovic (2012) | `k1`, `k2`, `k3` | Parallel-reaction kinetics |
+| Spline — Rodrigues (2003) | `k1`–`k4` | Piecewise-linear CER/FER/DC |
 
-1. Martínez, J.; Martínez, J.M. **Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool.** *Computers & Chemical Engineering*, v. 32, n. 8, p. 1735–1745, 2008. [doi:10.1016/j.compchemeng.2007.08.016](https://doi.org/10.1016/j.compchemeng.2007.08.016)
-
-2. Martínez, J.; Monteiro, A.R.; Rosa, P.T.V.; Marques, M.O.M.; Meireles, M.A.A. **Multicomponent model to describe extraction of ginger oleoresin with supercritical carbon dioxide.** *Industrial & Engineering Chemistry Research*, v. 42, n. 5, p. 1057–1063, 2003. [doi:10.1021/ie020694f](https://doi.org/10.1021/ie020694f)
+See the [Models](@ref "Model Description") page for the equations.
 
 ## Graphical interface
 
-Prefer a point-and-click workflow? Launch the built-in web GUI — no coding needed:
+Launch the built-in web GUI — no coding needed:
 
 ```julia
 using SovovaMulti
@@ -51,27 +58,37 @@ data = [5.0   0.1;
         90.0  1.4;
         120.0 1.5]
 
-# Or read from files:
-# data = TextTable("experiment.txt")
-# data = ExcelTable("experiment.xlsx")
-
 curve = ExtractionCurve(
-    data           = data,
-    temperature    = 313.15,   # K
-    porosity       = 0.4,
-    x0             = 0.05,     # kg/kg
-    solid_density  = 1.1,      # g/cm³
-    solvent_density = 0.8,     # g/cm³
-    flow_rate      = 5.0,      # cm³/min
-    bed_height     = 20.0,     # cm
-    bed_diameter   = 2.0,      # cm
-    particle_diameter = 0.05,  # cm
-    solid_mass     = 50.0,     # g
-    solubility     = 0.005,    # kg/kg
-    viscosity      = 0.06,     # mPa·s
+    data              = data,
+    temperature       = 313.15,   # K
+    porosity          = 0.4,
+    x0                = 0.05,     # kg/kg
+    solid_density     = 1.1,      # g/cm³
+    solvent_density   = 0.8,      # g/cm³
+    flow_rate         = 5.0,      # cm³/min
+    bed_height        = 20.0,     # cm
+    bed_diameter      = 2.0,      # cm
+    particle_diameter = 0.05,     # cm
+    solid_mass        = 50.0,     # g
+    solubility        = 0.005,    # kg/kg
+    viscosity         = 0.06,     # mPa·s
 )
 
+# Sovová PDE model
 result = sovova_multi(curve)
+
+# Empirical models — same ExtractionCurve, just change the model
+result = fit_model(Reverchon(),           curve)
+result = fit_model(VeljkovicMilenovic(),  curve)
+result = fit_model(PKM(),                 curve)
 ```
 
-See the [Usage](@ref) page for details and multi-curve examples.
+See the [Usage](@ref) page for multi-curve examples and export options.
+
+### References
+
+1. Sovová, H. **Rate of the vegetable oil extraction with supercritical CO₂ — I. Modelling of extraction curves.** *Chemical Engineering Science*, v. 49, n. 3, p. 409–414, 1994. [doi:10.1016/0009-2509(94)87012-8](https://doi.org/10.1016/0009-2509(94)87012-8)
+
+2. Martínez, J.; Martínez, J.M. **Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool.** *Computers & Chemical Engineering*, v. 32, n. 8, p. 1735–1745, 2008. [doi:10.1016/j.compchemeng.2007.08.016](https://doi.org/10.1016/j.compchemeng.2007.08.016)
+
+3. Martínez, J.; Monteiro, A.R.; Rosa, P.T.V.; Marques, M.O.M.; Meireles, M.A.A. **Multicomponent model to describe extraction of ginger oleoresin with supercritical carbon dioxide.** *Industrial & Engineering Chemistry Research*, v. 42, n. 5, p. 1057–1063, 2003. [doi:10.1021/ie020694f](https://doi.org/10.1021/ie020694f)

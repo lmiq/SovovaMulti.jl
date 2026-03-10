@@ -4,19 +4,22 @@
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/stable/)
 [![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/dev/)
 
-**SovovaMulti** fits the [Sovová (1994)](https://doi.org/10.1016/0009-2509(94)87012-8) supercritical fluid extraction model to experimental extraction curves. It supports simultaneous fitting of multiple curves sharing a common `xk/x0` parameter, using global optimization.
+**SovovaMulti** fits kinetic models for supercritical fluid extraction (SFE) to experimental extraction curves, using global optimization.
 
-## What it does
+## Supported models
 
-Supercritical fluid extraction (SFE) experiments produce cumulative-mass-vs-time curves. The Sovová model describes these curves with three physical parameters per experiment:
+| Model | Parameters | Type |
+|-------|-----------|------|
+| [Sovová (1994)](https://doi.org/10.1016/0009-2509(94)87012-8) | `kya`, `kxa`, `xk/x0` per curve | PDE (broken & intact cells) |
+| [Reverchon (1993)](https://doi.org/10.1021/ie00023a039) | `k1` | Empirical — single exponential |
+| [Esquível (1999)](https://doi.org/10.1016/S0896-8446(99)00014-5) | `k1` | Empirical — single exponential |
+| [Zekovic (2003)](http://www.doiserbia.nb.rs/Article.aspx?id=1450-71880334125Z) | `k1`, `k2` | Empirical — accessible fraction + rate |
+| [Nguyen (1991)](https://doi.org/10.1016/0896-8446(91)90029-6) | `k1` | Empirical — solid-phase resistance |
+| [Veljković & Milenović (2002)](https://doi.org/10.2298/HEMIND0202060V) | `k1`, `k2`, `k3` | Empirical — two-phase leakage + diffusion |
+| [PKM — Maksimovic (2012)](https://doi.org/10.1016/j.proeng.2012.07.571) | `k1`, `k2`, `k3` | Parallel-reaction kinetics |
+| [Spline — Rodrigues (2003)](https://doi.org/10.1021/jf0257493) | `k1`–`k4` | Piecewise-linear CER/FER/DC |
 
-| Parameter | Description |
-|-----------|-------------|
-| `kya`     | Fluid-phase mass transfer coefficient (1/s) |
-| `kxa`     | Solid-phase mass transfer coefficient (1/s) |
-| `xk/x0`   | Fraction of easily accessible solute (shared across curves) |
-
-`SovovaMulti` minimizes the sum of squared residuals between the simulated and experimental extraction curves using [BlackBoxOptim.jl](https://github.com/robertfeldt/BlackBoxOptim.jl). When multiple curves are fitted together (e.g. at different flow rates or temperatures), `xk/x0` is constrained to be the same for all of them, which improves the physical consistency of the fit.
+The Sovová model additionally supports **simultaneous fitting of multiple curves** sharing a common `xk/x0` parameter.
 
 ## Installation
 
@@ -25,13 +28,57 @@ import Pkg
 Pkg.Apps.add("SovovaMulti")
 ```
 
-This will create a desktop shortcut for the app. Advanced command-line (Julia REPL) use is possible.
+This will create a desktop shortcut for the app. Advanced command-line (Julia REPL) use is also possible.
 
 Supported platforms: **Linux**, **macOS**, **Windows**.
+
+## Usage
+
+### Graphical interface
+
+Double-click the desktop shortcut created during installation, or from the Julia REPL:
+
+```julia
+using SovovaMulti
+sovovagui()
+```
+
+Upload a data file, select a model from the dropdown, fill in operating conditions and optimizer bounds, then click **Run Fitting**.
+
+### Julia API
+
+```julia
+using SovovaMulti
+
+curve = ExtractionCurve(data = data, x0 = 0.05, solid_mass = 50.0, ...)
+
+# Sovová PDE model (single or multiple curves)
+result = sovova_multi(curve)
+
+# Any empirical model
+result = fit_model(Reverchon(),          curve)
+result = fit_model(VeljkovicMilenovic(), curve)
+result = fit_model(PKM(),                curve)
+# etc.
+```
 
 ## References
 
 Sovová, H. (1994). Rate of the vegetable oil extraction with supercritical CO₂ — I. Modelling of extraction curves. *Chemical Engineering Science*, 49(3), 409–414. https://doi.org/10.1016/0009-2509(94)87012-8
+
+Reverchon, E.; Donsi, G.; Ossèo, L.S. (1993). Modeling of supercritical fluid extraction from herbaceous matrices. *Industrial & Engineering Chemistry Research*, 32(11), 2721–2726. https://doi.org/10.1021/ie00023a039
+
+Esquível, M.M.; Bernardo-Gil, M.G.; King, M.B. (1999). Mathematical models for supercritical extraction of olive husk oil. *Journal of Supercritical Fluids*, 16(1), 43–58. https://doi.org/10.1016/S0896-8446(99)00014-5
+
+Zeković, Z.P.; Lepojević, Ž.D.; Milošević, S.G.; Tolić, A.Š. (2003). Modeling of the thyme: liquid carbon dioxide extraction system. *Acta Periodica Technologica*, 34, 125–133. http://www.doiserbia.nb.rs/Article.aspx?id=1450-71880334125Z
+
+Nguyen, K.; Barton, P.; Spencer, J.S. (1991). Supercritical carbon dioxide extraction of vanilla. *Journal of Supercritical Fluids*, 4(1), 40–46. https://doi.org/10.1016/0896-8446(91)90029-6
+
+Veljković, V.B.; Milenović, D.M. (2002). Extraction of resinoids from St. John's wort — II. Modeling of extraction kinetics. *Hemijska Industrija*, 56(2), 60–67. https://doi.org/10.2298/HEMIND0202060V
+
+Maksimović, S.; Ivanović, J.; Skala, D. (2012). Supercritical extraction of essential oil from Mentha and mathematical modelling. *Procedia Engineering*, 42, 1767–1777. https://doi.org/10.1016/j.proeng.2012.07.571
+
+Rodrigues, V.M.; Rosa, P.T.V.; Marques, M.O.M.; Petenate, A.J.; Meireles, M.A.A. (2003). Supercritical extraction of essential oil from aniseed using CO₂: Solubility, kinetics, and composition data. *Journal of Agricultural and Food Chemistry*, 51(6), 1518–1523. https://doi.org/10.1021/jf0257493
 
 Martínez, J.; Martínez, J.M. (2008). Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool. *Computers & Chemical Engineering*, 32(8), 1735–1745. https://doi.org/10.1016/j.compchemeng.2007.08.016
 
