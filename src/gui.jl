@@ -199,7 +199,7 @@ $('datafile').addEventListener('change', async e => {
     let html = '<table class="preview"><tr><th>Time (min)</th>';
     for (let j = 1; j < ncols; j++) html += '<th>Rep ' + j + ' (g)</th>';
     html += '</tr>';
-    const n = Math.min(rows.length, 5);
+    const n = Math.min(rows.length, 3);
     for (let i = 0; i < n; i++) {
       html += '<tr>';
       for (let j = 0; j < ncols; j++) html += '<td>' + rows[i][j] + '</td>';
