@@ -148,7 +148,7 @@ function _create_shortcut_windows(; location, port, name)
     \$sc.Save()
     """
     run(`powershell -NoProfile -NonInteractive -Command $ps`)
-    @info "Shortcut created: $lnk  (launcher: $ps1_path)"
+    _print_install_success(lnk)
     return lnk
 end
 
@@ -194,7 +194,7 @@ function _create_shortcut_macos(; location, port, name)
     </dict></plist>
     """)
 
-    @info "App bundle created: $app_path"
+    _print_install_success(app_path)
     return app_path
 end
 
@@ -210,6 +210,18 @@ function _create_shortcut_linux(; location, port, name)
     mkpath(dest_dir)
     desktop_file = joinpath(dest_dir, name * ".desktop")
 
+    # Write SVG icon to the standard hicolor icon theme directory
+    icon_dir = joinpath(homedir(), ".local", "share", "icons", "hicolor", "scalable", "apps")
+    mkpath(icon_dir)
+    icon_name = lowercase(replace(name, " " => ""))
+    icon_path = joinpath(icon_dir, icon_name * ".svg")
+    write(icon_path, """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="32" fill="#1e3a5f"/>
+  <text x="32" y="41" font-family="Arial,sans-serif" font-size="21"
+        font-weight="bold" text-anchor="middle" fill="#e0eaff">SM</text>
+</svg>
+""")
+
     # Prefer the Pkg.Apps-installed binary; fall back to julia -m
     exec_cmd = let p = _installed_app_exe("sovovamulti")
         if p !== nothing
@@ -221,15 +233,16 @@ function _create_shortcut_linux(; location, port, name)
     end
 
     write(desktop_file, """
-    [Desktop Entry]
-    Version=1.0
-    Type=Application
-    Name=$name
-    Comment=Sovová supercritical extraction model — multi-curve fitting
-    Exec=$exec_cmd
-    Terminal=false
-    Categories=Science;Education;
-    """)
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=$name
+Comment=Sovová supercritical extraction model — multi-curve fitting
+Exec=$exec_cmd
+Icon=$icon_name
+Terminal=false
+Categories=Science;Education;
+""")
     chmod(desktop_file, 0o755)
 
     # Mark as trusted on GNOME (suppresses the "untrusted launcher" dialog)
@@ -238,8 +251,25 @@ function _create_shortcut_linux(; location, port, name)
     catch
     end
 
-    @info "Desktop entry created: $desktop_file"
+    _print_install_success(desktop_file)
     return desktop_file
+end
+
+function _print_install_success(path::String)
+    println()
+    println("  ╔══════════════════════════════════════════════════════════╗")
+    println("  ║                                                          ║")
+    println("  ║   SovovaMulti shortcut created successfully!            ║")
+    println("  ║                                                          ║")
+    # truncate long paths so the box stays aligned
+    label = length(path) > 52 ? "…" * path[end-50:end] : path
+    println("  ║   ", rpad(label, 55), "║")
+    println("  ║                                                          ║")
+    println("  ║   You can now close this Julia session and launch       ║")
+    println("  ║   the app by double-clicking the desktop icon.          ║")
+    println("  ║                                                          ║")
+    println("  ╚══════════════════════════════════════════════════════════╝")
+    println()
 end
 
 """

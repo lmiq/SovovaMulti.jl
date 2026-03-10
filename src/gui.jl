@@ -117,6 +117,11 @@ table.data tr:hover td{background:#fafafa}
 </div>
 </fieldset>
 
+<div id="status"></div>
+<div class="btn-row">
+  <button id="runbtn" disabled>Run Fitting</button>
+</div>
+
 <fieldset>
 <legend>Optimizer Options</legend>
 <div class="grid">
@@ -129,11 +134,6 @@ table.data tr:hover td{background:#fafafa}
   <label>Max evaluations   <input type="number" id="maxevals" step="1" value="50000"/></label>
 </div>
 </fieldset>
-
-<div id="status"></div>
-<div class="btn-row">
-  <button id="runbtn" disabled>Run Fitting</button>
-</div>
 
 </div><!-- tab-input -->
 
@@ -151,6 +151,11 @@ table.data tr:hover td{background:#fafafa}
 
   <canvas id="chart"></canvas>
 
+  <div id="dlrow" class="dl-row">
+    <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
+    <a href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
+  </div>
+
   <div class="card">
     <div class="card-title">Fitted Parameters</div>
     <table class="params" id="params-table"></table>
@@ -159,11 +164,6 @@ table.data tr:hover td{background:#fafafa}
   <div class="card scrollable">
     <div class="card-title">Experimental vs Calculated</div>
     <table class="data" id="data-table"></table>
-  </div>
-
-  <div id="dlrow" class="dl-row">
-    <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
-    <a href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
   </div>
 
 </div><!-- output-content -->
@@ -195,16 +195,17 @@ $('datafile').addEventListener('change', async e => {
     const json = await res.json();
     if (json.error) { $('status').textContent = json.error; return; }
     const rows = json.data;
+    const ncols = rows[0].length;
     let html = '<table class="preview"><tr><th>Time (min)</th>';
-    for (let j = 1; j < rows[0].length; j++) html += '<th>Rep ' + j + ' (g)</th>';
+    for (let j = 1; j < ncols; j++) html += '<th>Rep ' + j + ' (g)</th>';
     html += '</tr>';
-    const n = Math.min(rows.length, 8);
+    const n = Math.min(rows.length, 5);
     for (let i = 0; i < n; i++) {
       html += '<tr>';
-      for (let j = 0; j < rows[i].length; j++) html += '<td>' + rows[i][j] + '</td>';
+      for (let j = 0; j < ncols; j++) html += '<td>' + rows[i][j] + '</td>';
       html += '</tr>';
     }
-    if (rows.length > n) html += '<tr><td colspan="' + rows[0].length + '">… ' + (rows.length - n) + ' more rows</td></tr>';
+    if (rows.length > n) html += '<tr><td colspan="' + ncols + '">… ' + (rows.length - n) + ' more rows</td></tr>';
     html += '</table>';
     $('preview').innerHTML = html;
     $('runbtn').disabled = false;
@@ -240,11 +241,11 @@ $('runbtn').addEventListener('click', async () => {
       $('runbtn').disabled = false;
       return;
     }
+    $('output-content').style.display = 'block';  // must show before drawChart measures width
     renderParams(json.params);
     renderDataTable(json.chart);
     drawChart(json.chart);
-    $('output-content').style.display = 'block';
-    $('dlrow').style.display          = 'flex';
+    $('dlrow').style.display = 'flex';
   } catch(err) {
     $('spinner').style.display   = 'none';
     $('out-error').textContent   = 'Error: ' + err.message;
