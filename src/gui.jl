@@ -79,7 +79,7 @@ table.data tr:hover td{background:#fafafa}
 </style>
 </head>
 <body>
-<h1>SovovaMulti</h1>
+<h1>SovovaMulti &mdash; v__VERSION__</h1>
 <p class="subtitle">Sovová (1994) supercritical extraction model — multi-curve fitting</p>
 
 <div class="container">
@@ -481,8 +481,9 @@ function _start_gui(port::Int, launch::Bool)
     server_ref = Ref{Any}(nothing)
     last_ping  = Ref{Float64}(time())
 
-    # Serve the HTML page
-    HTTP.register!(router, "GET", "/", _ -> HTTP.Response(200, ["Content-Type" => "text/html"], _GUI_HTML))
+    # Serve the HTML page (inject package version into the title)
+    _versioned_html = replace(_GUI_HTML, "__VERSION__" => string(pkgversion(@__MODULE__)))
+    HTTP.register!(router, "GET", "/", _ -> HTTP.Response(200, ["Content-Type" => "text/html"], _versioned_html))
 
     # File upload endpoint
     HTTP.register!(router, "POST", "/api/upload", function(req)
