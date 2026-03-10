@@ -40,6 +40,7 @@ button:disabled{background:#93c5fd;cursor:not-allowed}
 table.preview{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
 table.preview th,table.preview td{border:1px solid #e5e7eb;padding:3px 6px;text-align:right}
 table.preview th{background:#f3f4f6}
+#chart{display:none;width:100%;border-radius:6px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -94,6 +95,7 @@ table.preview th{background:#f3f4f6}
   <button id="runbtn" disabled>Run Fitting</button>
 </div>
 <div id="status"></div>
+<canvas id="chart"></canvas>
 <pre id="results"></pre>
 <div id="dlrow" class="dl-row">
   <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
@@ -150,6 +152,7 @@ $('runbtn').addEventListener('click', async () => {
   }
   $('runbtn').disabled = true;
   $('dlrow').style.display = 'none';
+  $('chart').style.display = 'none';
   $('status').textContent = 'Running optimizer — this may take a minute…';
   $('results').style.display = 'none';
   try {
@@ -160,12 +163,111 @@ $('runbtn').addEventListener('click', async () => {
     const json = await res.json();
     if (json.error) { $('status').textContent = 'Error: ' + json.error; $('runbtn').disabled = false; return; }
     $('status').textContent = 'Done!';
+    drawChart(json.chart);
     $('results').style.display = 'block';
     $('results').textContent = json.report;
     $('dlrow').style.display = 'flex';
   } catch(err) { $('status').textContent = 'Error: ' + err.message; }
   $('runbtn').disabled = false;
 });
+
+// ── Extraction curve chart (vanilla Canvas) ───────────────────────
+function drawChart(ch) {
+  const canvas = $('chart');
+  canvas.style.display = 'block';
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth;
+  const H   = 300;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = {top:16, right:16, bottom:46, left:62};
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top  - pad.bottom;
+
+  const allY = [...ch.cal, ...ch.exp.flat()];
+  const xMax = Math.max(...ch.t_min) * 1.04;
+  const yMax = Math.max(...allY) * 1.08;
+  const tx = x => pad.left + (x / xMax) * pw;
+  const ty = y => pad.top  + ph - (y / yMax) * ph;
+
+  // Background
+  ctx.fillStyle = '#fff';  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#f9fafb'; ctx.fillRect(pad.left, pad.top, pw, ph);
+
+  // Grid
+  const NX = 5, NY = 4;
+  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+  for (let i = 0; i <= NX; i++) {
+    const x = pad.left + i * pw / NX;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + ph); ctx.stroke();
+  }
+  for (let i = 0; i <= NY; i++) {
+    const y = pad.top + i * ph / NY;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + pw, y); ctx.stroke();
+  }
+
+  // X tick labels
+  ctx.fillStyle = '#374151'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  for (let i = 0; i <= NX; i++)
+    ctx.fillText((xMax * i / NX).toFixed(0), pad.left + i * pw / NX, pad.top + ph + 16);
+  // X axis label
+  ctx.font = '12px system-ui';
+  ctx.fillText('Time (min)', pad.left + pw / 2, H - 4);
+
+  // Y tick labels
+  ctx.textAlign = 'right'; ctx.font = '11px system-ui';
+  for (let i = 0; i <= NY; i++) {
+    const val = yMax * (NY - i) / NY;
+    ctx.fillText(val.toPrecision(3), pad.left - 6, pad.top + i * ph / NY + 4);
+  }
+  // Y axis label (rotated)
+  ctx.save();
+  ctx.translate(11, pad.top + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center'; ctx.font = '12px system-ui';
+  ctx.fillText('Extracted mass (g)', 0, 0);
+  ctx.restore();
+
+  // Axis border
+  ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 1;
+  ctx.strokeRect(pad.left, pad.top, pw, ph);
+
+  // Experimental scatter points
+  const expColors = ['#dc2626','#d97706','#059669','#7c3aed','#0891b2'];
+  ch.exp.forEach((rep, ri) => {
+    ctx.fillStyle = expColors[ri % expColors.length];
+    rep.forEach((y, i) => {
+      ctx.beginPath();
+      ctx.arc(tx(ch.t_min[i]), ty(y), 4, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+  });
+
+  // Calculated line (drawn on top)
+  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ch.t_min.forEach((t, i) => i === 0 ? ctx.moveTo(tx(t), ty(ch.cal[i]))
+                                      : ctx.lineTo(tx(t), ty(ch.cal[i])));
+  ctx.stroke();
+
+  // Legend
+  const lx = pad.left + 10, ly = pad.top + 8;
+  ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(lx, ly + 5); ctx.lineTo(lx + 18, ly + 5); ctx.stroke();
+  ctx.fillStyle = '#374151'; ctx.fillText('Calculated', lx + 22, ly + 9);
+  ch.exp.forEach((_, ri) => {
+    const ey = ly + 18 * (ri + 1);
+    ctx.fillStyle = expColors[ri % expColors.length];
+    ctx.beginPath(); ctx.arc(lx + 9, ey + 4, 4, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#374151';
+    ctx.fillText(ch.exp.length > 1 ? 'Exp. rep. ' + (ri + 1) : 'Experimental', lx + 22, ey + 8);
+  });
+}
 
 // ── Shutdown on window/tab close ─────────────────────────────────
 window.addEventListener('beforeunload', () => navigator.sendBeacon('/api/shutdown'));
@@ -344,8 +446,11 @@ function _start_gui(port::Int, launch::Bool)
                 end
             end
 
+            t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
+            chart = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+
             return HTTP.Response(200, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("report" => report)))
+                JSON3.write(Dict("report" => report, "chart" => chart)))
         catch e
             return HTTP.Response(200, ["Content-Type" => "application/json"],
                 JSON3.write(Dict("error" => sprint(showerror, e))))
