@@ -8,6 +8,8 @@ using HTTP
 using JSON3
 
 export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable, sovovagui, create_shortcut, export_results
+export ExtractionModel, ParamSpec, ModelFitResult, fit_model, param_spec, simulate
+export Sovova, Reverchon, Esquivel, Zekovic, Nguyen, VeljkovicMilenovic, PKM, SplineModel
 
 const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)
@@ -509,9 +511,9 @@ function simulate(curve::ExtractionCurve, kya, kxa, xk)
 end
 
 function simulate!(ws::SimWorkspace, curve::ExtractionCurve, kya, kxa, xk)
-    (; t, m_ext, porosity, x0, solid_density, solvent_density,
-       flow_rate, bed_height, bed_diameter, particle_diameter,
-       solid_mass, solubility, viscosity, diffusivity, nh, nt) = curve
+    (; t, x0, solid_density, solvent_density,
+       flow_rate, bed_height, bed_diameter,
+       solid_mass, solubility, nh, nt) = curve
 
     ndata = length(t)
     xs = ws.xs
@@ -618,7 +620,7 @@ function sovova_multi(
 
     # Build bounds: [kya_1, kxa_1, kya_2, kxa_2, ..., xk_ratio]
     search_range = Tuple{Float64,Float64}[]
-    for iexp in 1:nexp
+    for _ in 1:nexp
         push!(search_range, kya_bounds)
         push!(search_range, kxa_bounds)
     end
@@ -833,6 +835,7 @@ function _export_xlsx(filename, result, curves)
     end
 end
 
+include("models.jl")
 include("gui.jl")
 
 end
