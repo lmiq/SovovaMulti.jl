@@ -27,6 +27,12 @@ end
 
 # ── Parameter specifications ──────────────────────────────────────────────────
 
+param_spec(::Sovova) = [
+    ParamSpec("kya", "kya — fluid-phase mass transfer coeff. (1/s)", 0.0, 0.05),
+    ParamSpec("kxa", "kxa — solid-phase mass transfer coeff. (1/s)", 0.0, 0.005),
+    ParamSpec("xk_ratio", "xk/x₀ — accessible solute ratio (—)", 0.0, 1.0),
+]
+
 param_spec(::Reverchon) = [
     ParamSpec("k1", "k₁ — rate constant (1/s)", 0.0, 1e-2),
 ]
@@ -207,3 +213,25 @@ const _MODEL_REGISTRY = Dict{String, ExtractionModel}(
 )
 
 model_from_name(name::String) = get(_MODEL_REGISTRY, lowercase(name), Sovova())
+
+# ── Export support for ModelFitResult ─────────────────────────────────────────
+
+function _fitted_params(result::ModelFitResult, ::Int)
+    params = [(s.name, result.params[i], "") for (i, s) in enumerate(result.spec)]
+    push!(params, ("SSR", result.objective, ""))
+    return params
+end
+
+function export_results(filename::AbstractString, result::ModelFitResult, curve::ExtractionCurve)
+    export_results(filename, result, [curve])
+end
+
+function export_results(filename::AbstractString, result::ModelFitResult, curves::Vector{ExtractionCurve})
+    if endswith(lowercase(filename), ".xlsx")
+        _export_xlsx(filename, result, curves)
+    else
+        _export_txt(filename, result, curves)
+    end
+    @info "Results written to $filename"
+    return filename
+end

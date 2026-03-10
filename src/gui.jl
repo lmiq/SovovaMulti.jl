@@ -25,6 +25,9 @@ label{font-size:.82rem;color:#4b5563;display:flex;flex-direction:column;gap:2px}
 input[type=text],input[type=number],input[type=file]{
   border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:.88rem;width:100%}
 input:focus{outline:2px solid #3b82f6;border-color:transparent}
+select{border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:.88rem;width:100%;
+  background:#fff;cursor:pointer}
+select:focus{outline:2px solid #3b82f6;border-color:transparent}
 button{cursor:pointer;border:none;border-radius:6px;padding:10px 28px;font-size:.95rem;
   font-weight:600;color:#fff;background:#2563eb;transition:background .15s}
 button:hover{background:#1d4ed8}
@@ -80,7 +83,7 @@ table.data tr:hover td{background:#fafafa}
 </head>
 <body>
 <h1>SovovaMulti &mdash; v__VERSION__</h1>
-<p class="subtitle">Sovová (1994) supercritical extraction model — multi-curve fitting</p>
+<p class="subtitle">Supercritical fluid extraction — multi-model curve fitting</p>
 
 <div class="container">
 <div class="tabs">
@@ -97,6 +100,22 @@ table.data tr:hover td{background:#fafafa}
   <input type="file" id="datafile" accept=".txt,.csv,.dat,.tsv,.xlsx"/>
 </label>
 <div id="preview"></div>
+</fieldset>
+
+<fieldset>
+<legend>Model Selection</legend>
+<label>Extraction model
+  <select id="model-select">
+    <option value="sovova" selected>Sovová (1994)</option>
+    <option value="reverchon">Reverchon (1993)</option>
+    <option value="esquivel">Esquível (1999)</option>
+    <option value="zekovic">Zeković (2003)</option>
+    <option value="nguyen">Nguyen (1991)</option>
+    <option value="veljkovic">Veljković &amp; Milenović (2002)</option>
+    <option value="pkm">PKM (2012)</option>
+    <option value="spline">Spline — CER/FER/DC</option>
+  </select>
+</label>
 </fieldset>
 
 <fieldset>
@@ -123,14 +142,11 @@ table.data tr:hover td{background:#fafafa}
 </div>
 
 <fieldset>
-<legend>Optimizer Options</legend>
-<div class="grid">
-  <label>kya lower bound   <input type="number" id="kya_lo" step="any" value="0.0"/></label>
-  <label>kya upper bound   <input type="number" id="kya_hi" step="any" value="0.05"/></label>
-  <label>kxa lower bound   <input type="number" id="kxa_lo" step="any" value="0.0"/></label>
-  <label>kxa upper bound   <input type="number" id="kxa_hi" step="any" value="0.005"/></label>
-  <label>xk/x₀ lower bound <input type="number" id="xk_lo" step="any" value="0.0"/></label>
-  <label>xk/x₀ upper bound <input type="number" id="xk_hi" step="any" value="1.0"/></label>
+<legend>Optimizer Bounds</legend>
+<div class="grid" id="bounds-grid">
+  <!-- populated dynamically based on selected model -->
+</div>
+<div class="grid" style="margin-top:8px">
   <label>Max evaluations   <input type="number" id="maxevals" step="1" value="50000"/></label>
 </div>
 </fieldset>
@@ -183,6 +199,29 @@ function showTab(name) {
 document.querySelectorAll('.tab-btn').forEach(b =>
   b.addEventListener('click', () => showTab(b.dataset.tab)));
 
+// ── Current parameter specs for the selected model ───────────
+let currentSpecs = [];
+
+// ── Model change → update optimizer bounds ───────────────────
+async function updateBounds() {
+  const model = $('model-select').value;
+  try {
+    const res = await fetch('/api/model_params?model=' + encodeURIComponent(model));
+    const specs = await res.json();
+    currentSpecs = specs;
+    let html = '';
+    specs.forEach(s => {
+      html += '<label>' + s.name + ' lower bound'
+            + ' <input type="number" id="' + s.name + '_lo" step="any" value="' + s.lb + '"/></label>';
+      html += '<label>' + s.name + ' upper bound'
+            + ' <input type="number" id="' + s.name + '_hi" step="any" value="' + s.ub + '"/></label>';
+    });
+    $('bounds-grid').innerHTML = html;
+  } catch(e) { console.error('Failed to load model params:', e); }
+}
+$('model-select').addEventListener('change', updateBounds);
+updateBounds();
+
 // ── File upload → preview ────────────────────────────────────────
 $('datafile').addEventListener('change', async e => {
   const file = e.target.files[0];
@@ -215,15 +254,28 @@ $('datafile').addEventListener('change', async e => {
 
 // ── Run fitting ──────────────────────────────────────────────────
 $('runbtn').addEventListener('click', async () => {
-  const ids = ['temperature','porosity','x0','solid_density','solvent_density',
+  const condIds = ['temperature','porosity','x0','solid_density','solvent_density',
     'flow_rate','bed_height','bed_diameter','particle_diameter','solid_mass',
-    'solubility','viscosity','kya_lo','kya_hi','kxa_lo','kxa_hi','xk_lo','xk_hi','maxevals'];
+    'solubility','viscosity'];
   const body = {};
-  for (const id of ids) {
+  for (const id of condIds) {
     const v = parseFloat($(id).value);
     if (isNaN(v)) { $('status').textContent = 'Invalid value for ' + id; return; }
     body[id] = v;
   }
+  body.model = $('model-select').value;
+  for (const s of currentSpecs) {
+    const lo = parseFloat($(s.name + '_lo').value);
+    const hi = parseFloat($(s.name + '_hi').value);
+    if (isNaN(lo) || isNaN(hi)) {
+      $('status').textContent = 'Invalid bounds for ' + s.name; return;
+    }
+    body[s.name + '_lo'] = lo;
+    body[s.name + '_hi'] = hi;
+  }
+  const me = parseFloat($('maxevals').value);
+  if (isNaN(me)) { $('status').textContent = 'Invalid max evaluations'; return; }
+  body.maxevals = me;
   $('runbtn').disabled = true;
   showTab('output');
   $('spinner').style.display        = 'flex';
@@ -255,17 +307,14 @@ $('runbtn').addEventListener('click', async () => {
 });
 
 // ── Render fitted parameters table ───────────────────────────────
-function renderParams(p) {
-  const rows = [
-    ['kya',       p.kya.toExponential(4),   '1/s'   ],
-    ['kxa',       p.kxa.toExponential(4),   '1/s'   ],
-    ['xk / x\u2080', p.xk_ratio.toFixed(4),''],
-    ['xk',        p.xk.toExponential(4),    'kg/kg' ],
-    ['tCER',      p.tcer.toFixed(1),        's'     ],
-    ['SSR',       p.ssr.toExponential(4),   ''      ],
-  ];
-  $('params-table').innerHTML = rows.map(([n, v, u]) =>
-    '<tr><td>' + n + '</td><td>' + v + '</td><td>' + u + '</td></tr>').join('');
+function renderParams(params) {
+  $('params-table').innerHTML = params.map(p => {
+    const v = typeof p.value === 'number'
+      ? (Math.abs(p.value) < 0.01 || Math.abs(p.value) >= 1e4
+         ? p.value.toExponential(4) : p.value.toPrecision(5))
+      : String(p.value);
+    return '<tr><td>' + p.name + '</td><td>' + v + '</td><td>' + (p.unit||'') + '</td></tr>';
+  }).join('');
 }
 
 // ── Render exp vs calc data table ────────────────────────────────
@@ -499,12 +548,31 @@ function _start_gui(port::Int, launch::Bool)
         end
     end)
 
+    # Model parameter specs endpoint
+    HTTP.register!(router, "GET", "/api/model_params", function(req)
+        try
+            m = match(r"model=([^&]+)", req.target)
+            model_name = m !== nothing ? String(m.captures[1]) : "sovova"
+            model = model_from_name(model_name)
+            spec = param_spec(model)
+            result = [Dict("name" => s.name, "label" => s.label, "lb" => s.lb, "ub" => s.ub)
+                      for s in spec]
+            return HTTP.Response(200, ["Content-Type" => "application/json"],
+                JSON3.write(result))
+        catch e
+            return HTTP.Response(200, ["Content-Type" => "application/json"],
+                JSON3.write(Dict("error" => sprint(showerror, e))))
+        end
+    end)
+
     # Run fitting endpoint
     HTTP.register!(router, "POST", "/api/run", function(req)
         try
             p = JSON3.read(String(req.body))
             data = _gui_data[]
             data === nothing && error("No data loaded — upload a file first.")
+
+            model_name = haskey(p, :model) ? String(p[:model]) : "sovova"
 
             curve = ExtractionCurve(
                 data              = data,
@@ -522,28 +590,53 @@ function _start_gui(port::Int, launch::Bool)
                 viscosity         = Float64(p[:viscosity]),
             )
 
-            result = sovova_multi(curve;
-                kya_bounds      = (Float64(p[:kya_lo]), Float64(p[:kya_hi])),
-                kxa_bounds      = (Float64(p[:kxa_lo]), Float64(p[:kxa_hi])),
-                xk_ratio_bounds = (Float64(p[:xk_lo]),  Float64(p[:xk_hi])),
-                maxevals        = Int(p[:maxevals]),
-                tracemode       = :silent,
-            )
-            _gui_result[] = (result, curve)
+            maxevals = Int(p[:maxevals])
 
-            t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
-            chart  = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
-            params = Dict(
-                "kya"      => result.kya[1],
-                "kxa"      => result.kxa[1],
-                "xk_ratio" => result.xk_ratio,
-                "xk"       => result.xk[1],
-                "tcer"     => result.tcer[1],
-                "ssr"      => result.objective,
-            )
+            if model_name == "sovova"
+                result = sovova_multi(curve;
+                    kya_bounds      = (Float64(p[:kya_lo]), Float64(p[:kya_hi])),
+                    kxa_bounds      = (Float64(p[:kxa_lo]), Float64(p[:kxa_hi])),
+                    xk_ratio_bounds = (Float64(p[:xk_ratio_lo]), Float64(p[:xk_ratio_hi])),
+                    maxevals        = maxevals,
+                    tracemode       = :silent,
+                )
+                _gui_result[] = (result, curve)
+
+                t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
+                chart  = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+                params = [
+                    Dict("name" => "kya",    "value" => result.kya[1],    "unit" => "1/s"),
+                    Dict("name" => "kxa",    "value" => result.kxa[1],    "unit" => "1/s"),
+                    Dict("name" => "xk/x₀",  "value" => result.xk_ratio,  "unit" => ""),
+                    Dict("name" => "xk",     "value" => result.xk[1],     "unit" => "kg/kg"),
+                    Dict("name" => "tCER",   "value" => result.tcer[1],   "unit" => "s"),
+                    Dict("name" => "SSR",    "value" => result.objective, "unit" => ""),
+                ]
+            else
+                model = model_from_name(model_name)
+                spec  = param_spec(model)
+                pbounds = Tuple{Float64,Float64}[]
+                for s in spec
+                    lo = Float64(p[Symbol(s.name * "_lo")])
+                    hi = Float64(p[Symbol(s.name * "_hi")])
+                    push!(pbounds, (lo, hi))
+                end
+                result = fit_model(model, curve;
+                    param_bounds = pbounds,
+                    maxevals     = maxevals,
+                    tracemode    = :silent,
+                )
+                _gui_result[] = (result, curve)
+
+                t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
+                chart  = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+                params = [Dict("name" => s.name, "value" => result.params[i], "unit" => "")
+                          for (i, s) in enumerate(result.spec)]
+                push!(params, Dict("name" => "SSR", "value" => result.objective, "unit" => ""))
+            end
 
             return HTTP.Response(200, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("chart" => chart, "params" => params)))
+                JSON3.write(Dict("chart" => chart, "params" => params, "model" => model_name)))
         catch e
             return HTTP.Response(200, ["Content-Type" => "application/json"],
                 JSON3.write(Dict("error" => sprint(showerror, e))))
