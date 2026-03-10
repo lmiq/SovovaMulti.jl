@@ -87,12 +87,13 @@ table.data tr:hover td{background:#fafafa}
 
 <div class="container">
 <div class="tabs">
-  <button class="tab-btn active" data-tab="input">Input</button>
-  <button class="tab-btn"        data-tab="output">Output</button>
+  <button class="tab-btn active" data-tab="data">Data</button>
+  <button class="tab-btn"        data-tab="model">Model</button>
+  <button class="tab-btn"        data-tab="results">Results</button>
 </div>
 
-<!-- ═══ INPUT TAB ════════════════════════════════════════════════ -->
-<div id="tab-input" class="tab-panel active">
+<!-- ═══ DATA TAB ═════════════════════════════════════════════════ -->
+<div id="tab-data" class="tab-panel active">
 
 <fieldset>
 <legend>Experimental Data</legend>
@@ -100,22 +101,6 @@ table.data tr:hover td{background:#fafafa}
   <input type="file" id="datafile" accept=".txt,.csv,.dat,.tsv,.xlsx"/>
 </label>
 <div id="preview"></div>
-</fieldset>
-
-<fieldset>
-<legend>Model Selection</legend>
-<label>Extraction model
-  <select id="model-select">
-    <option value="sovova" selected>Sovová (1994)</option>
-    <option value="reverchon">Reverchon (1993)</option>
-    <option value="esquivel">Esquível (1999)</option>
-    <option value="zekovic">Zeković (2003)</option>
-    <option value="nguyen">Nguyen (1991)</option>
-    <option value="veljkovic">Veljković &amp; Milenović (2002)</option>
-    <option value="pkm">PKM (2012)</option>
-    <option value="spline">Spline — CER/FER/DC</option>
-  </select>
-</label>
 </fieldset>
 
 <fieldset>
@@ -138,8 +123,29 @@ table.data tr:hover td{background:#fafafa}
 
 <div id="status"></div>
 <div class="btn-row">
-  <button id="runbtn" disabled>Run Fitting</button>
+  <button id="nextbtn" disabled>Next: Select Model →</button>
 </div>
+
+</div><!-- tab-data -->
+
+<!-- ═══ MODEL TAB ════════════════════════════════════════════════ -->
+<div id="tab-model" class="tab-panel">
+
+<fieldset>
+<legend>Model Selection</legend>
+<label>Extraction model
+  <select id="model-select">
+    <option value="sovova" selected>Sovová (1994) — Broken and Intact Cells</option>
+    <option value="reverchon">Reverchon (1993) — single exponential</option>
+    <option value="esquivel">Esquível (1999) — single exponential</option>
+    <option value="zekovic">Zeković (2003) — accessible fraction + rate</option>
+    <option value="nguyen">Nguyen (1991) — solid-phase resistance</option>
+    <option value="veljkovic">Veljković &amp; Milenović (2002) — two-phase</option>
+    <option value="pkm">PKM — Maksimovic (2012) — parallel reactions</option>
+    <option value="spline">Spline (2003) — piecewise-linear CER/FER/DC</option>
+  </select>
+</label>
+</fieldset>
 
 <fieldset>
 <legend>Optimizer Bounds</legend>
@@ -151,10 +157,14 @@ table.data tr:hover td{background:#fafafa}
 </div>
 </fieldset>
 
-</div><!-- tab-input -->
+<div class="btn-row">
+  <button id="runbtn" disabled>Run Fitting</button>
+</div>
 
-<!-- ═══ OUTPUT TAB ═══════════════════════════════════════════════ -->
-<div id="tab-output" class="tab-panel">
+</div><!-- tab-model -->
+
+<!-- ═══ RESULTS TAB ═══════════════════════════════════════════════ -->
+<div id="tab-results" class="tab-panel">
 
 <div id="spinner">
   <div class="spin-ring"></div>
@@ -183,7 +193,7 @@ table.data tr:hover td{background:#fafafa}
   </div>
 
 </div><!-- output-content -->
-</div><!-- tab-output -->
+</div><!-- tab-results -->
 
 </div><!-- container -->
 <script>
@@ -198,6 +208,9 @@ function showTab(name) {
 }
 document.querySelectorAll('.tab-btn').forEach(b =>
   b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+// ── "Next" button: advance from Data tab to Model tab ─────────────
+$('nextbtn').addEventListener('click', () => showTab('model'));
 
 // ── Current parameter specs for the selected model ───────────
 let currentSpecs = [];
@@ -247,6 +260,7 @@ $('datafile').addEventListener('change', async e => {
     if (rows.length > n) html += '<tr><td colspan="' + ncols + '">… ' + (rows.length - n) + ' more rows</td></tr>';
     html += '</table>';
     $('preview').innerHTML = html;
+    $('nextbtn').disabled = false;
     $('runbtn').disabled = false;
     $('status').textContent = 'Data loaded: ' + rows.length + ' rows × ' + rows[0].length + ' columns.';
   } catch(err) { $('status').textContent = 'Upload failed: ' + err.message; }
@@ -277,7 +291,7 @@ $('runbtn').addEventListener('click', async () => {
   if (isNaN(me)) { $('status').textContent = 'Invalid max evaluations'; return; }
   body.maxevals = me;
   $('runbtn').disabled = true;
-  showTab('output');
+  showTab('results');
   $('spinner').style.display        = 'flex';
   $('out-error').style.display      = 'none';
   $('output-content').style.display = 'none';
