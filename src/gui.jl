@@ -16,13 +16,13 @@ const _GUI_HTML = raw"""
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f4f6fb;color:#23283a}
 h1{text-align:center;padding:18px 0 6px;font-size:1.45rem;color:#1e3a5f}
-.subtitle{text-align:center;color:#6b7280;font-size:.88rem;margin-bottom:14px}
+.subtitle{text-align:center;color:#6b7280;font-size:.88rem;margin-bottom:10px}
 .container{max-width:720px;margin:0 auto;padding:0 14px 40px}
 fieldset{border:1px solid #d1d5db;border-radius:8px;padding:14px 16px;margin-bottom:14px;background:#fff}
 legend{font-weight:600;font-size:.95rem;padding:0 6px;color:#1e3a5f}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
 label{font-size:.82rem;color:#4b5563;display:flex;flex-direction:column;gap:2px}
-input[type=text],input[type=number],input[type=file],select{
+input[type=text],input[type=number],input[type=file]{
   border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:.88rem;width:100%}
 input:focus{outline:2px solid #3b82f6;border-color:transparent}
 button{cursor:pointer;border:none;border-radius:6px;padding:10px 28px;font-size:.95rem;
@@ -30,17 +30,52 @@ button{cursor:pointer;border:none;border-radius:6px;padding:10px 28px;font-size:
 button:hover{background:#1d4ed8}
 button:disabled{background:#93c5fd;cursor:not-allowed}
 .btn-row{text-align:center;margin:14px 0}
-#status{text-align:center;margin:8px 0;font-size:.9rem;color:#4b5563;min-height:1.4em}
-#results{white-space:pre-wrap;font-family:'Fira Code',monospace;font-size:.84rem;
-  background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;display:none;margin-top:10px}
-.dl-row{display:none;justify-content:center;gap:12px;margin:12px 0}
+#status{text-align:center;margin:6px 0;font-size:.88rem;color:#4b5563;min-height:1.3em}
+.dl-row{display:none;justify-content:center;gap:12px;margin:14px 0}
 .dl-btn{display:inline-block;border-radius:6px;padding:9px 22px;font-size:.9rem;
   font-weight:600;color:#fff;background:#059669;text-decoration:none;transition:background .15s}
 .dl-btn:hover{background:#047857}
 table.preview{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
 table.preview th,table.preview td{border:1px solid #e5e7eb;padding:3px 6px;text-align:right}
 table.preview th{background:#f3f4f6}
-#chart{display:none;width:100%;border-radius:6px;margin-top:10px}
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:2px solid #d1d5db;margin-bottom:16px}
+.tab-btn{background:none;border:none;padding:10px 28px;font-size:.95rem;font-weight:600;
+  color:#6b7280;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;
+  transition:color .15s,border-color .15s}
+.tab-btn.active{color:#1e3a5f;border-bottom-color:#2563eb}
+.tab-btn:hover:not(.active){color:#374151}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+/* ── Spinner ── */
+#spinner{display:none;flex-direction:column;align-items:center;padding:60px 0;gap:20px}
+.spin-ring{width:52px;height:52px;border:5px solid #e5e7eb;border-top-color:#2563eb;
+  border-radius:50%;animation:spin .85s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-text{color:#4b5563;font-size:.95rem}
+/* ── Output error ── */
+#out-error{display:none;color:#dc2626;text-align:center;padding:20px;font-size:.9rem}
+/* ── Cards ── */
+.card{background:#fff;border:1px solid #d1d5db;border-radius:8px;
+  padding:14px 16px;margin-bottom:14px}
+.card-title{font-size:.93rem;font-weight:600;color:#1e3a5f;margin-bottom:10px}
+.card.scrollable{overflow-x:auto}
+/* ── Params table ── */
+table.params{width:100%;border-collapse:collapse;font-size:.88rem}
+table.params td{padding:5px 8px;border-bottom:1px solid #f3f4f6}
+table.params tr:last-child td{border-bottom:none}
+table.params td:first-child{color:#4b5563}
+table.params td:nth-child(2){font-family:'Fira Code',monospace;font-weight:600;
+  text-align:right;color:#1e3a5f}
+table.params td:last-child{color:#9ca3af;font-size:.8rem;padding-left:8px;white-space:nowrap}
+/* ── Data table ── */
+table.data{width:100%;border-collapse:collapse;font-size:.82rem}
+table.data th{background:#f3f4f6;padding:5px 10px;text-align:right;font-weight:600;
+  color:#374151;white-space:nowrap;border-bottom:2px solid #e5e7eb}
+table.data td{padding:4px 10px;text-align:right;border-bottom:1px solid #f3f4f6}
+table.data tr:hover td{background:#fafafa}
+/* ── Canvas ── */
+#chart{display:block;width:100%;border-radius:8px;margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -48,8 +83,14 @@ table.preview th{background:#f3f4f6}
 <p class="subtitle">Sovová (1994) supercritical extraction model — multi-curve fitting</p>
 
 <div class="container">
+<div class="tabs">
+  <button class="tab-btn active" data-tab="input">Input</button>
+  <button class="tab-btn"        data-tab="output">Output</button>
+</div>
 
-<!-- Data file -->
+<!-- ═══ INPUT TAB ════════════════════════════════════════════════ -->
+<div id="tab-input" class="tab-panel active">
+
 <fieldset>
 <legend>Experimental Data</legend>
 <label>Data file (text or .xlsx)
@@ -58,7 +99,6 @@ table.preview th{background:#f3f4f6}
 <div id="preview"></div>
 </fieldset>
 
-<!-- Operating conditions -->
 <fieldset>
 <legend>Operating Conditions</legend>
 <div class="grid">
@@ -77,34 +117,71 @@ table.preview th{background:#f3f4f6}
 </div>
 </fieldset>
 
-<!-- Optimizer options -->
 <fieldset>
 <legend>Optimizer Options</legend>
 <div class="grid">
-  <label>kya lower bound  <input type="number" id="kya_lo" step="any" value="0.0"/></label>
-  <label>kya upper bound  <input type="number" id="kya_hi" step="any" value="0.05"/></label>
-  <label>kxa lower bound  <input type="number" id="kxa_lo" step="any" value="0.0"/></label>
-  <label>kxa upper bound  <input type="number" id="kxa_hi" step="any" value="0.005"/></label>
+  <label>kya lower bound   <input type="number" id="kya_lo" step="any" value="0.0"/></label>
+  <label>kya upper bound   <input type="number" id="kya_hi" step="any" value="0.05"/></label>
+  <label>kxa lower bound   <input type="number" id="kxa_lo" step="any" value="0.0"/></label>
+  <label>kxa upper bound   <input type="number" id="kxa_hi" step="any" value="0.005"/></label>
   <label>xk/x₀ lower bound <input type="number" id="xk_lo" step="any" value="0.0"/></label>
   <label>xk/x₀ upper bound <input type="number" id="xk_hi" step="any" value="1.0"/></label>
   <label>Max evaluations   <input type="number" id="maxevals" step="1" value="50000"/></label>
 </div>
 </fieldset>
 
+<div id="status"></div>
 <div class="btn-row">
   <button id="runbtn" disabled>Run Fitting</button>
 </div>
-<div id="status"></div>
-<canvas id="chart"></canvas>
-<pre id="results"></pre>
-<div id="dlrow" class="dl-row">
-  <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
-  <a href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
+
+</div><!-- tab-input -->
+
+<!-- ═══ OUTPUT TAB ═══════════════════════════════════════════════ -->
+<div id="tab-output" class="tab-panel">
+
+<div id="spinner">
+  <div class="spin-ring"></div>
+  <div class="spin-text">Running optimizer — this may take a minute…</div>
 </div>
+
+<div id="out-error"></div>
+
+<div id="output-content" style="display:none">
+
+  <canvas id="chart"></canvas>
+
+  <div class="card">
+    <div class="card-title">Fitted Parameters</div>
+    <table class="params" id="params-table"></table>
+  </div>
+
+  <div class="card scrollable">
+    <div class="card-title">Experimental vs Calculated</div>
+    <table class="data" id="data-table"></table>
+  </div>
+
+  <div id="dlrow" class="dl-row">
+    <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
+    <a href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
+  </div>
+
+</div><!-- output-content -->
+</div><!-- tab-output -->
 
 </div><!-- container -->
 <script>
 const $ = id => document.getElementById(id);
+
+// ── Tab switching ─────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p =>
+    p.classList.toggle('active', p.id === 'tab-' + name));
+}
+document.querySelectorAll('.tab-btn').forEach(b =>
+  b.addEventListener('click', () => showTab(b.dataset.tab)));
 
 // ── File upload → preview ────────────────────────────────────────
 $('datafile').addEventListener('change', async e => {
@@ -117,10 +194,8 @@ $('datafile').addEventListener('change', async e => {
     const res = await fetch('/api/upload', {method:'POST', body:formData});
     const json = await res.json();
     if (json.error) { $('status').textContent = json.error; return; }
-    // Show preview table
     const rows = json.data;
-    let html = '<table class="preview"><tr>';
-    html += '<th>Time (min)</th>';
+    let html = '<table class="preview"><tr><th>Time (min)</th>';
     for (let j = 1; j < rows[0].length; j++) html += '<th>Rep ' + j + ' (g)</th>';
     html += '</tr>';
     const n = Math.min(rows.length, 8);
@@ -133,7 +208,6 @@ $('datafile').addEventListener('change', async e => {
     html += '</table>';
     $('preview').innerHTML = html;
     $('runbtn').disabled = false;
-    $('dlrow').style.display = 'none';
     $('status').textContent = 'Data loaded: ' + rows.length + ' rows × ' + rows[0].length + ' columns.';
   } catch(err) { $('status').textContent = 'Upload failed: ' + err.message; }
 });
@@ -142,8 +216,7 @@ $('datafile').addEventListener('change', async e => {
 $('runbtn').addEventListener('click', async () => {
   const ids = ['temperature','porosity','x0','solid_density','solvent_density',
     'flow_rate','bed_height','bed_diameter','particle_diameter','solid_mass',
-    'solubility','viscosity','kya_lo','kya_hi','kxa_lo','kxa_hi',
-    'xk_lo','xk_hi','maxevals'];
+    'solubility','viscosity','kya_lo','kya_hi','kxa_lo','kxa_hi','xk_lo','xk_hi','maxevals'];
   const body = {};
   for (const id of ids) {
     const v = parseFloat($(id).value);
@@ -151,30 +224,67 @@ $('runbtn').addEventListener('click', async () => {
     body[id] = v;
   }
   $('runbtn').disabled = true;
-  $('dlrow').style.display = 'none';
-  $('chart').style.display = 'none';
-  $('status').textContent = 'Running optimizer — this may take a minute…';
-  $('results').style.display = 'none';
+  showTab('output');
+  $('spinner').style.display        = 'flex';
+  $('out-error').style.display      = 'none';
+  $('output-content').style.display = 'none';
   try {
-    const res = await fetch('/api/run', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
+    const res  = await fetch('/api/run', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
     });
     const json = await res.json();
-    if (json.error) { $('status').textContent = 'Error: ' + json.error; $('runbtn').disabled = false; return; }
-    $('status').textContent = 'Done!';
+    $('spinner').style.display = 'none';
+    if (json.error) {
+      $('out-error').textContent    = 'Error: ' + json.error;
+      $('out-error').style.display  = 'block';
+      $('runbtn').disabled = false;
+      return;
+    }
+    renderParams(json.params);
+    renderDataTable(json.chart);
     drawChart(json.chart);
-    $('results').style.display = 'block';
-    $('results').textContent = json.report;
-    $('dlrow').style.display = 'flex';
-  } catch(err) { $('status').textContent = 'Error: ' + err.message; }
+    $('output-content').style.display = 'block';
+    $('dlrow').style.display          = 'flex';
+  } catch(err) {
+    $('spinner').style.display   = 'none';
+    $('out-error').textContent   = 'Error: ' + err.message;
+    $('out-error').style.display = 'block';
+  }
   $('runbtn').disabled = false;
 });
+
+// ── Render fitted parameters table ───────────────────────────────
+function renderParams(p) {
+  const rows = [
+    ['kya',       p.kya.toExponential(4),   '1/s'   ],
+    ['kxa',       p.kxa.toExponential(4),   '1/s'   ],
+    ['xk / x\u2080', p.xk_ratio.toFixed(4),''],
+    ['xk',        p.xk.toExponential(4),    'kg/kg' ],
+    ['tCER',      p.tcer.toFixed(1),        's'     ],
+    ['SSR',       p.ssr.toExponential(4),   ''      ],
+  ];
+  $('params-table').innerHTML = rows.map(([n, v, u]) =>
+    '<tr><td>' + n + '</td><td>' + v + '</td><td>' + u + '</td></tr>').join('');
+}
+
+// ── Render exp vs calc data table ────────────────────────────────
+function renderDataTable(ch) {
+  const nr  = ch.exp.length;
+  let html  = '<tr><th>Time (min)</th>';
+  for (let j = 0; j < nr; j++)
+    html += '<th>' + (nr > 1 ? 'Exp. rep. ' + (j+1) : 'Experimental') + ' (g)</th>';
+  html += '<th>Calculated (g)</th></tr>';
+  ch.t_min.forEach((t, i) => {
+    html += '<tr><td>' + t.toFixed(2) + '</td>';
+    ch.exp.forEach(rep => html += '<td>' + rep[i].toFixed(4) + '</td>');
+    html += '<td>' + ch.cal[i].toFixed(4) + '</td></tr>';
+  });
+  $('data-table').innerHTML = html;
+}
 
 // ── Extraction curve chart (vanilla Canvas) ───────────────────────
 function drawChart(ch) {
   const canvas = $('chart');
-  canvas.style.display = 'block';
   const dpr = window.devicePixelRatio || 1;
   const W   = canvas.offsetWidth;
   const H   = 300;
@@ -194,11 +304,9 @@ function drawChart(ch) {
   const tx = x => pad.left + (x / xMax) * pw;
   const ty = y => pad.top  + ph - (y / yMax) * ph;
 
-  // Background
-  ctx.fillStyle = '#fff';  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff';    ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#f9fafb'; ctx.fillRect(pad.left, pad.top, pw, ph);
 
-  // Grid
   const NX = 5, NY = 4;
   ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
   for (let i = 0; i <= NX; i++) {
@@ -210,21 +318,17 @@ function drawChart(ch) {
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + pw, y); ctx.stroke();
   }
 
-  // X tick labels
   ctx.fillStyle = '#374151'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
   for (let i = 0; i <= NX; i++)
     ctx.fillText((xMax * i / NX).toFixed(0), pad.left + i * pw / NX, pad.top + ph + 16);
-  // X axis label
   ctx.font = '12px system-ui';
   ctx.fillText('Time (min)', pad.left + pw / 2, H - 4);
 
-  // Y tick labels
   ctx.textAlign = 'right'; ctx.font = '11px system-ui';
   for (let i = 0; i <= NY; i++) {
     const val = yMax * (NY - i) / NY;
     ctx.fillText(val.toPrecision(3), pad.left - 6, pad.top + i * ph / NY + 4);
   }
-  // Y axis label (rotated)
   ctx.save();
   ctx.translate(11, pad.top + ph / 2);
   ctx.rotate(-Math.PI / 2);
@@ -232,40 +336,34 @@ function drawChart(ch) {
   ctx.fillText('Extracted mass (g)', 0, 0);
   ctx.restore();
 
-  // Axis border
   ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 1;
   ctx.strokeRect(pad.left, pad.top, pw, ph);
 
-  // Experimental scatter points
   const expColors = ['#dc2626','#d97706','#059669','#7c3aed','#0891b2'];
   ch.exp.forEach((rep, ri) => {
     ctx.fillStyle = expColors[ri % expColors.length];
     rep.forEach((y, i) => {
-      ctx.beginPath();
-      ctx.arc(tx(ch.t_min[i]), ty(y), 4, 0, 2 * Math.PI);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(tx(ch.t_min[i]), ty(y), 4, 0, 2*Math.PI); ctx.fill();
     });
   });
 
-  // Calculated line (drawn on top)
   ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
   ctx.beginPath();
   ch.t_min.forEach((t, i) => i === 0 ? ctx.moveTo(tx(t), ty(ch.cal[i]))
                                       : ctx.lineTo(tx(t), ty(ch.cal[i])));
   ctx.stroke();
 
-  // Legend
   const lx = pad.left + 10, ly = pad.top + 8;
   ctx.font = '11px system-ui'; ctx.textAlign = 'left';
   ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(lx, ly + 5); ctx.lineTo(lx + 18, ly + 5); ctx.stroke();
-  ctx.fillStyle = '#374151'; ctx.fillText('Calculated', lx + 22, ly + 9);
+  ctx.beginPath(); ctx.moveTo(lx, ly+5); ctx.lineTo(lx+18, ly+5); ctx.stroke();
+  ctx.fillStyle = '#374151'; ctx.fillText('Calculated', lx+22, ly+9);
   ch.exp.forEach((_, ri) => {
-    const ey = ly + 18 * (ri + 1);
+    const ey = ly + 18*(ri+1);
     ctx.fillStyle = expColors[ri % expColors.length];
-    ctx.beginPath(); ctx.arc(lx + 9, ey + 4, 4, 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(lx+9, ey+4, 4, 0, 2*Math.PI); ctx.fill();
     ctx.fillStyle = '#374151';
-    ctx.fillText(ch.exp.length > 1 ? 'Exp. rep. ' + (ri + 1) : 'Experimental', lx + 22, ey + 8);
+    ctx.fillText(ch.exp.length > 1 ? 'Exp. rep. '+(ri+1) : 'Experimental', lx+22, ey+8);
   });
 }
 
@@ -431,35 +529,19 @@ function _start_gui(port::Int, launch::Bool)
             )
             _gui_result[] = (result, curve)
 
-            report = sprint() do io
-                println(io, "══════════════════════════════════════")
-                println(io, " SovovaMulti — Fitting Results")
-                println(io, "══════════════════════════════════════")
-                println(io)
-                println(io, "  kya      = ", result.kya[1], " 1/s")
-                println(io, "  kxa      = ", result.kxa[1], " 1/s")
-                println(io, "  xk/x0    = ", result.xk_ratio)
-                println(io, "  xk       = ", result.xk[1], " kg/kg")
-                println(io, "  tCER     = ", result.tcer[1], " s")
-                println(io, "  SSR      = ", result.objective)
-                println(io)
-                println(io, "──────────────────────────────────────")
-                println(io, " Experimental vs Calculated (kg)")
-                println(io, "──────────────────────────────────────")
-                t_min = curve.t ./ 60.0
-                m_exp = curve.m_ext .* 1000.0   # back to g
-                m_cal = result.ycal[1] .* 1000.0
-                for i in eachindex(t_min)
-                    @Printf.printf(io, "  t=%7.1f min  exp=%8.4f g  cal=%8.4f g\n",
-                        t_min[i], m_exp[i], m_cal[i])
-                end
-            end
-
             t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
-            chart = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+            chart  = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+            params = Dict(
+                "kya"      => result.kya[1],
+                "kxa"      => result.kxa[1],
+                "xk_ratio" => result.xk_ratio,
+                "xk"       => result.xk[1],
+                "tcer"     => result.tcer[1],
+                "ssr"      => result.objective,
+            )
 
             return HTTP.Response(200, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("report" => report, "chart" => chart)))
+                JSON3.write(Dict("chart" => chart, "params" => params)))
         catch e
             return HTTP.Response(200, ["Content-Type" => "application/json"],
                 JSON3.write(Dict("error" => sprint(showerror, e))))
