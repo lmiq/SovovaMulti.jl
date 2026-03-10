@@ -105,13 +105,11 @@ function _create_shortcut_windows(; location, port, name)
 
     # Write a small .ps1 launcher — PowerShell supports -WindowStyle Hidden natively,
     # which is more reliable than VBScript on modern Windows.
-    # Use julia -e directly to avoid issues with -m / @main entry point detection.
     ps1_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.ps1")
     mkpath(julia_bin_dir)
     # Single-quote the path for PowerShell (escape embedded single quotes)
     ps1_exe_q = replace(julia_exe, "'" => "''")
-    julia_code = "using SovovaMulti; wait(SovovaMulti.sovovagui(port=$port))"
-    write(ps1_path, "& '$ps1_exe_q' --startup-file=no -e '$julia_code'\r\n")
+    write(ps1_path, "& '$ps1_exe_q' --startup-file=no -m SovovaMulti --port $port\r\n")
 
     # PowerShell executable (always present on Win 7+)
     powershell_exe = joinpath(get(ENV, "SystemRoot", "C:\\Windows"),
@@ -151,10 +149,8 @@ function _create_shortcut_macos(; location, port, name)
     macos_dir = joinpath(app_path, "Contents", "MacOS")
     mkpath(macos_dir)
 
-    # Use julia -e directly to avoid issues with -m / @main entry point detection.
     julia_bin = joinpath(Sys.BINDIR, "julia")
-    julia_code = "using SovovaMulti; wait(SovovaMulti.sovovagui(port=$port))"
-    launcher = "exec '$(replace(julia_bin, "'" => "\\'"))' --startup-file=no -e '$julia_code'"
+    launcher = "exec '$(replace(julia_bin, "'" => "\\'"))' --startup-file=no -m SovovaMulti --port $port"
 
     script = joinpath(macos_dir, name)
     write(script, "#!/bin/sh\n$launcher\n")
@@ -202,10 +198,8 @@ function _create_shortcut_linux(; location, port, name)
 </svg>
 """)
 
-    # Use julia -e directly to avoid issues with -m / @main entry point detection.
     julia_bin = joinpath(Sys.BINDIR, "julia")
-    julia_code = "using SovovaMulti; wait(SovovaMulti.sovovagui(port=$port))"
-    exec_cmd = "$julia_bin --startup-file=no -e '$julia_code'"
+    exec_cmd = "$julia_bin --startup-file=no -m SovovaMulti --port $port"
 
     write(desktop_file, """
 [Desktop Entry]
