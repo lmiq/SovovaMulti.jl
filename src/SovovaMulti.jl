@@ -86,12 +86,6 @@ function create_shortcut(; location::Symbol=:desktop, port::Int=9876, name::Stri
     end
 end
 
-# Returns the path to the Pkg.Apps-installed binary if present, otherwise nothing.
-function _installed_app_exe(appname::String)
-    p = joinpath(homedir(), ".julia", "bin", appname)
-    isfile(p) ? p : nothing
-end
-
 function _create_shortcut_windows(; location, port, name)
     julia_exe = joinpath(Sys.BINDIR, "julia.exe")
     isfile(julia_exe) || error("Could not locate julia.exe at $julia_exe")
@@ -107,26 +101,17 @@ function _create_shortcut_windows(; location, port, name)
     isdir(dest_dir) || error("Destination directory not found: $dest_dir")
     lnk = joinpath(dest_dir, name * ".lnk")
 
-    # Prefer the Pkg.Apps-installed .cmd wrapper if available
     julia_bin_dir = joinpath(homedir(), ".julia", "bin")
-    app_cmd = let p = joinpath(julia_bin_dir, "sovovamulti.cmd")
-        isfile(p) ? p : nothing
-    end
-
-    app_to_run = something(app_cmd, julia_exe)  # .cmd path or julia.exe as fallback
 
     # Write a small .ps1 launcher — PowerShell supports -WindowStyle Hidden natively,
     # which is more reliable than VBScript on modern Windows.
+    # Use julia -e directly to avoid issues with -m / @main entry point detection.
     ps1_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.ps1")
     mkpath(julia_bin_dir)
-    ps1_args = if app_cmd !== nothing
-        "--port $port"
-    else
-        "-m SovovaMulti --port $port"
-    end
     # Single-quote the path for PowerShell (escape embedded single quotes)
-    ps1_exe_q = replace(app_to_run, "'" => "''")
-    write(ps1_path, "& '$ps1_exe_q' $ps1_args\r\n")
+    ps1_exe_q = replace(julia_exe, "'" => "''")
+    julia_code = "using SovovaMulti; wait(SovovaMulti.sovovagui(port=$port))"
+    write(ps1_path, "& '$ps1_exe_q' --startup-file=no -e '$julia_code'\r\n")
 
     # PowerShell executable (always present on Win 7+)
     powershell_exe = joinpath(get(ENV, "SystemRoot", "C:\\Windows"),
@@ -166,15 +151,10 @@ function _create_shortcut_macos(; location, port, name)
     macos_dir = joinpath(app_path, "Contents", "MacOS")
     mkpath(macos_dir)
 
-    # Prefer the Pkg.Apps-installed binary; fall back to julia -m
-    launcher = let p = _installed_app_exe("sovovamulti")
-        if p !== nothing
-            "exec '$(replace(p, "'" => "\\'"))' --port $port"
-        else
-            julia_bin = joinpath(Sys.BINDIR, "julia")
-            "exec '$(replace(julia_bin, "'" => "\\'"))' -m SovovaMulti --port $port"
-        end
-    end
+    # Use julia -e directly to avoid issues with -m / @main entry point detection.
+    julia_bin = joinpath(Sys.BINDIR, "julia")
+    julia_code = "using SovovaMulti; wait(SovovaMulti.sovovagui(port=$port))"
+    launcher = "exec '$(replace(julia_bin, "'" => "\\'"))' --startup-file=no -e '$julia_code'"
 
     script = joinpath(macos_dir, name)
     write(script, "#!/bin/sh\n$launcher\n")
@@ -222,15 +202,10 @@ function _create_shortcut_linux(; location, port, name)
 </svg>
 """)
 
-    # Prefer the Pkg.Apps-installed binary; fall back to julia -m
-    exec_cmd = let p = _installed_app_exe("sovovamulti")
-        if p !== nothing
-            "$p --port $port"
-        else
-            julia_bin = joinpath(Sys.BINDIR, "julia")
-            "$julia_bin -m SovovaMulti --port $port"
-        end
-    end
+    # Use julia -e directly to avoid issues with -m / @main entry point detection.
+    julia_bin = joinpath(Sys.BINDIR, "julia")
+    julia_code = "using SovovaMulti; wait(SovovaMulti.sovovagui(port=$port))"
+    exec_cmd = "$julia_bin --startup-file=no -e '$julia_code'"
 
     write(desktop_file, """
 [Desktop Entry]
