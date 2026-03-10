@@ -1,6 +1,6 @@
 name = "SovovaMulti"
 uuid = "0cf59ef5-fec3-4aea-9b72-567761fff152"
-version = "1.0.12"
+version = "1.0.13"
 authors = ["Leandro Martinez <lmartine@unicamp.br> and contributors"]
 
 [deps]

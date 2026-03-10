@@ -312,7 +312,16 @@ end
 # Try to open `url` in a Chromium-based browser using --app=URL so it
 # appears as a frameless app window (no address bar, no tabs).
 # Falls back to the system default browser if no Chromium browser is found.
+#
+# A per-port --user-data-dir is passed to Chromium so that each server
+# instance gets its own browser process. Without this, a second launch
+# hands control to the already-running Chromium process, which may just
+# focus the existing window instead of opening a new one.
 function _open_app_window(url::String)
+    port_str   = split(url, ":")[end]
+    profile_dir = joinpath(tempdir(), "sovovamulti_$port_str")
+    mkpath(profile_dir)
+
     if Sys.iswindows()
         candidates = [
             joinpath(get(ENV, "ProgramFiles", "C:\\Program Files"),
@@ -328,7 +337,7 @@ function _open_app_window(url::String)
         ]
         exe = findfirst(isfile, candidates)
         if exe !== nothing
-            run(Cmd([candidates[exe], "--app=$url"]), wait=false)
+            run(Cmd([candidates[exe], "--app=$url", "--user-data-dir=$profile_dir"]), wait=false)
         else
             run(`cmd /c start $url`, wait=false)
         end
@@ -341,7 +350,7 @@ function _open_app_window(url::String)
         ]
         exe = findfirst(isfile, candidates)
         if exe !== nothing
-            run(Cmd([candidates[exe], "--app=$url"]), wait=false)
+            run(Cmd([candidates[exe], "--app=$url", "--user-data-dir=$profile_dir"]), wait=false)
         else
             run(`open $url`, wait=false)
         end
@@ -360,7 +369,7 @@ function _open_app_window(url::String)
             end
         end
         if found !== nothing
-            run(Cmd([found, "--app=$url"]), wait=false)
+            run(Cmd([found, "--app=$url", "--user-data-dir=$profile_dir"]), wait=false)
         else
             run(`xdg-open $url`, wait=false)
         end
