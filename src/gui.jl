@@ -166,6 +166,12 @@ $('runbtn').addEventListener('click', async () => {
   } catch(err) { $('status').textContent = 'Error: ' + err.message; }
   $('runbtn').disabled = false;
 });
+
+// ── Shutdown on window/tab close ─────────────────────────────────
+window.addEventListener('beforeunload', () => navigator.sendBeacon('/api/shutdown'));
+
+// ── Heartbeat: keep server alive while the page is open ──────────
+setInterval(() => fetch('/api/ping', {method:'POST'}).catch(()=>{}), 5000);
 </script>
 </body>
 </html>
@@ -262,6 +268,8 @@ end
 # ── Start GUI server ─────────────────────────────────────────────
 function _start_gui(port::Int, launch::Bool)
     router = HTTP.Router()
+    server_ref = Ref{Any}(nothing)
+    last_ping  = Ref{Float64}(time())
 
     # Serve the HTML page
     HTTP.register!(router, "GET", "/", _ -> HTTP.Response(200, ["Content-Type" => "text/html"], _GUI_HTML))
@@ -344,6 +352,22 @@ function _start_gui(port::Int, launch::Bool)
         end
     end)
 
+    # Heartbeat endpoint — browser pings every 5 s while the page is open
+    HTTP.register!(router, "POST", "/api/ping", function(req)
+        last_ping[] = time()
+        return HTTP.Response(200, ["Content-Type" => "application/json"], "{}")
+    end)
+
+    # Shutdown endpoint — called via sendBeacon when the page unloads
+    HTTP.register!(router, "POST", "/api/shutdown", function(req)
+        @async begin
+            sleep(0.1)
+            srv = server_ref[]
+            srv !== nothing && isopen(srv) && close(srv)
+        end
+        return HTTP.Response(200, ["Content-Type" => "application/json"], "{}")
+    end)
+
     # Download results endpoint
     HTTP.register!(router, "GET", "/api/download", function(req)
         cached = _gui_result[]
@@ -381,6 +405,23 @@ function _start_gui(port::Int, launch::Bool)
         end
     end
     server === nothing && error("Could not find a free port in range $(port)–$(port+100)")
+    server_ref[] = server
+    last_ping[]  = time()
+
+    # Watchdog: shut down if no browser ping for more than 15 s
+    @async begin
+        while true
+            sleep(5)
+            srv = server_ref[]
+            (srv === nothing || !isopen(srv)) && break
+            if time() - last_ping[] > 15.0
+                @info "No browser activity detected — shutting down server."
+                close(srv)
+                break
+            end
+        end
+    end
+
     url = "http://127.0.0.1:$actual_port"
     actual_port != port && @info "Port $port was busy; using $actual_port instead"
     @info "SovovaMulti GUI running at $url — press Ctrl-C to stop"
