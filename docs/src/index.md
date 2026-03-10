@@ -22,7 +22,7 @@ or more experimental extraction curves simultaneously. The package:
 
 The methodology implemented in this package is described in the following publications:
 
-1. Martínez, J.; Martínez, J.M. **Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool.** *Computers & Chemical Engineering*, v. 32, n. 8, p. 1735–1745, 2008. [doi:10.1016/j.compchemeng.2007.08.009](https://doi.org/10.1016/j.compchemeng.2007.08.009)
+1. Martínez, J.; Martínez, J.M. **Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool.** *Computers & Chemical Engineering*, v. 32, n. 8, p. 1735–1745, 2008. [doi:10.1016/j.compchemeng.2007.08.016](https://doi.org/10.1016/j.compchemeng.2007.08.016)
 
 2. Martínez, J.; Monteiro, A.R.; Rosa, P.T.V.; Marques, M.O.M.; Meireles, M.A.A. **Multicomponent model to describe extraction of ginger oleoresin with supercritical carbon dioxide.** *Industrial & Engineering Chemistry Research*, v. 42, n. 5, p. 1057–1063, 2003. [doi:10.1021/ie020694f](https://doi.org/10.1021/ie020694f)
 

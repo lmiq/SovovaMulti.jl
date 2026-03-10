@@ -4,7 +4,7 @@
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/stable/)
 [![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/dev/)
 
-**SovovaMulti** fits the [Sovová (1994)](https://doi.org/10.1016/0009-2509(94)85024-5) supercritical fluid extraction model to experimental extraction curves. It supports simultaneous fitting of multiple curves sharing a common `xk/x0` parameter, using global optimization.
+**SovovaMulti** fits the [Sovová (1994)](https://doi.org/10.1016/0009-2509(94)87012-8) supercritical fluid extraction model to experimental extraction curves. It supports simultaneous fitting of multiple curves sharing a common `xk/x0` parameter, using global optimization.
 
 ## What it does
 
@@ -31,8 +31,8 @@ Supported platforms: **Linux**, **macOS**, **Windows**.
 
 ## References
 
-Sovová, H. (1994). Rate of the vegetable oil extraction with supercritical CO₂ — I. Modelling of extraction curves. *Chemical Engineering Science*, 49(3), 409–414. https://doi.org/10.1016/0009-2509(94)85024-5
+Sovová, H. (1994). Rate of the vegetable oil extraction with supercritical CO₂ — I. Modelling of extraction curves. *Chemical Engineering Science*, 49(3), 409–414. https://doi.org/10.1016/0009-2509(94)87012-8
 
-Martínez, J.; Martínez, J.M. (2008). Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool. *Computers & Chemical Engineering*, 32(8), 1735–1745. https://doi.org/10.1016/j.compchemeng.2007.08.009
+Martínez, J.; Martínez, J.M. (2008). Fitting the Sovová's supercritical fluid extraction model by means of a global optimization tool. *Computers & Chemical Engineering*, 32(8), 1735–1745. https://doi.org/10.1016/j.compchemeng.2007.08.016
 
 Martínez, J.; Monteiro, A.R.; Rosa, P.T.V.; Marques, M.O.M.; Meireles, M.A.A. (2003). Multicomponent model to describe extraction of ginger oleoresin with supercritical carbon dioxide. *Industrial & Engineering Chemistry Research*, 42(5), 1057–1063. https://doi.org/10.1021/ie020694f
