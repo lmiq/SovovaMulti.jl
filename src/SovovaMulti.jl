@@ -35,7 +35,7 @@ end
 
 Launch the SovovaMulti GUI as a standalone app.
 """
-function (@main)(args::Vector{String})
+function main(args::Vector{String})
     port = 9876
     launch = true
     i = 1
@@ -54,6 +54,7 @@ function (@main)(args::Vector{String})
     wait(server)
     return 0
 end
+@main
 
 """
     create_shortcut(; location=:desktop, port=9876, name="SovovaMulti")
