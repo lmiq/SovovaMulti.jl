@@ -98,7 +98,7 @@ m_e(t) = m_T \, k_1 \left(1 - e^{-k_2 t}\right)
 | ``k_1`` | Accessible yield fraction (dimensionless, 0–1) |
 | ``k_2`` | Rate constant (1/s) |
 
-**Reference:** Zeković, Z.P. *et al.* (2003). *Acta Period. Technol.*, 34, 125–133. [doi](http://www.doiserbia.nb.rs/Article.aspx?id=1450-71880334125Z)
+**Reference:** Zeković, Z.P. *et al.* (2003). *Acta Period. Technol.*, 34, 125–133. [doi](https://doi.org/10.2298/APT0334125Z)
 
 ---
 

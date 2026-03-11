@@ -13,7 +13,7 @@
 | [Sovová (1994)](https://doi.org/10.1016/0009-2509(94)87012-8) | `kya`, `kxa`, `xk/x0` per curve | PDE (broken & intact cells) |
 | [Reverchon (1993)](https://doi.org/10.1021/ie00023a039) | `k1` | Empirical — single exponential |
 | [Esquível (1999)](https://doi.org/10.1016/S0896-8446(99)00014-5) | `k1` | Empirical — single exponential |
-| [Zekovic (2003)](http://www.doiserbia.nb.rs/Article.aspx?id=1450-71880334125Z) | `k1`, `k2` | Empirical — accessible fraction + rate |
+| [Zekovic (2003)](https://doi.org/10.2298/APT0334125Z) | `k1`, `k2` | Empirical — accessible fraction + rate |
 | [Nguyen (1991)](https://doi.org/10.1016/0896-8446(91)90029-6) | `k1` | Empirical — solid-phase resistance |
 | [Veljković & Milenović (2002)](https://doi.org/10.2298/HEMIND0202060V) | `k1`, `k2`, `k3` | Empirical — two-phase leakage + diffusion |
 | [PKM — Maksimovic (2012)](https://doi.org/10.1016/j.proeng.2012.07.571) | `k1`, `k2`, `k3` | Parallel-reaction kinetics |
@@ -29,7 +29,7 @@ Reverchon, E.; Donsi, G.; Ossèo, L.S. (1993). Modeling of supercritical fluid e
 
 Esquível, M.M.; Bernardo-Gil, M.G.; King, M.B. (1999). Mathematical models for supercritical extraction of olive husk oil. *Journal of Supercritical Fluids*, 16(1), 43–58. https://doi.org/10.1016/S0896-8446(99)00014-5
 
-Zeković, Z.P.; Lepojević, Ž.D.; Milošević, S.G.; Tolić, A.Š. (2003). Modeling of the thyme: liquid carbon dioxide extraction system. *Acta Periodica Technologica*, 34, 125–133. http://www.doiserbia.nb.rs/Article.aspx?id=1450-71880334125Z
+Zeković, Z.P.; Lepojević, Ž.D.; Milošević, S.G.; Tolić, A.Š. (2003). Modeling of the thyme: liquid carbon dioxide extraction system. *Acta Periodica Technologica*, 34, 125–133. https://doi.org/10.2298/APT0334125Z
 
 Nguyen, K.; Barton, P.; Spencer, J.S. (1991). Supercritical carbon dioxide extraction of vanilla. *Journal of Supercritical Fluids*, 4(1), 40–46. https://doi.org/10.1016/0896-8446(91)90029-6
 
