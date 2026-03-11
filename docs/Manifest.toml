@@ -570,7 +570,7 @@ version = "1.2.2"
 deps = ["BlackBoxOptim", "DelimitedFiles", "HTTP", "JSON3", "Printf", "XLSX"]
 path = ".."
 uuid = "0cf59ef5-fec3-4aea-9b72-567761fff152"
-version = "1.0.0-DEV"
+version = "1.0.23"
 
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]

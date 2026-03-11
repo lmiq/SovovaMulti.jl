@@ -9,9 +9,9 @@ makedocs(;
     repo=GitHub("lmiq", "SovovaMulti.jl"),
     pages=[
         "Home" => "index.md",
-        "GUI" => "gui.md",
         "Installation" => "installation.md",
-        "Usage" => "usage.md",
+        "GUI" => "gui.md",
+        "Advanced usage" => "usage.md",
         "Model" => "model.md",
         "API Reference" => "api.md",
     ],

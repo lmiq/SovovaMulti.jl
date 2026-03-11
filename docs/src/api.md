@@ -1,3 +1,7 @@
+```@meta
+CollapsedDocStrings = true
+```
+
 # API Reference
 
 ## Input
@@ -22,13 +26,27 @@ SovovaMulti.simulate
 ## Fitting
 
 ```@docs
-sovova_multi
+fit_model
+param_spec
+```
+
+Available model types (pass an instance as the first argument to `fit_model`; omit for the default Sovová PDE model):
+
+```@docs
+Sovova
+Reverchon
+Esquivel
+Nguyen
+Zekovic
+VeljkovicMilenovic
+PKM
+SplineModel
 ```
 
 ## Output
 
 ```@docs
-SovovaResult
+ModelFitResult
 ```
 
 ## Graphical Interface

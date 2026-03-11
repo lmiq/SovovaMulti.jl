@@ -52,8 +52,9 @@ using SovovaMulti
 
 curve = ExtractionCurve(data = data, x0 = 0.05, solid_mass = 50.0, ...)
 
-# Sovová PDE model (single or multiple curves)
-result = sovova_multi(curve)
+# Sovová PDE model (default — single or multiple curves)
+result = fit_model(curve)
+result = fit_model(Sovova(), curve)   # explicit equivalent
 
 # Any empirical model
 result = fit_model(Reverchon(),          curve)
@@ -74,7 +75,7 @@ Zeković, Z.P.; Lepojević, Ž.D.; Milošević, S.G.; Tolić, A.Š. (2003). Mode
 
 Nguyen, K.; Barton, P.; Spencer, J.S. (1991). Supercritical carbon dioxide extraction of vanilla. *Journal of Supercritical Fluids*, 4(1), 40–46. https://doi.org/10.1016/0896-8446(91)90029-6
 
-Veljković, V.B.; Milenović, D.M. (2002). Extraction of resinoids from St. John's wort — II. Modeling of extraction kinetics. *Hemijska Industrija*, 56(2), 60–67. https://doi.org/10.2298/HEMIND0202060V
+Veljković, V.B.; Milenović, D.M. (2002). Extraction of resinoids from St. John's wort — II. Modeling of extraction kinetics. *Hemijska Industrial*, 56(2), 60–67. https://doi.org/10.2298/HEMIND0202060V
 
 Maksimović, S.; Ivanović, J.; Skala, D. (2012). Supercritical extraction of essential oil from Mentha and mathematical modelling. *Procedia Engineering*, 42, 1767–1777. https://doi.org/10.1016/j.proeng.2012.07.571
 

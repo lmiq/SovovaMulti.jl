@@ -63,7 +63,7 @@ using Test
         @test all(diff(ycal) .>= -1e-15)
     end
 
-    @testset "sovova_multi fitting (single curve)" begin
+    @testset "fit_model(Sovova()) fitting (single curve)" begin
         # Generate synthetic data with known parameters, then fit
         t_vals = collect(range(5.0, 180.0, length=15))
         curve_for_gen = ExtractionCurve(
@@ -105,7 +105,7 @@ using Test
             viscosity = 0.06,
         )
 
-        result = sovova_multi(curve; maxevals=20_000)
+        result = fit_model(curve; maxevals=20_000)
         @test result.objective < 1e-8
         @test length(result.kya) == 1
         @test length(result.kxa) == 1
@@ -145,7 +145,7 @@ using Test
             viscosity         = 0.067739,
         )
 
-        result = sovova_multi(curve; maxevals=50_000)
+        result = fit_model(curve; maxevals=50_000)
 
         # Should achieve a reasonable fit
         @test result.objective < 1e-5

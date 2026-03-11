@@ -33,59 +33,7 @@ experimental extraction curves. The package:
 
 See the [Models](@ref "Model Description") page for the equations.
 
-## Graphical interface
-
-Launch the built-in web GUI — no coding needed:
-
-```julia
-using SovovaMulti
-sovovagui()
-```
-
-See the [GUI](@ref "Graphical User Interface") page for details.
-
-## Quick start
-
-```julia
-using SovovaMulti
-
-# Data matrix: column 1 = time (min), columns 2:N = replicate m_ext (g)
-data = [5.0   0.1;
-        10.0  0.3;
-        20.0  0.6;
-        30.0  0.9;
-        60.0  1.2;
-        90.0  1.4;
-        120.0 1.5]
-
-curve = ExtractionCurve(
-    data              = data,
-    temperature       = 313.15,   # K
-    porosity          = 0.4,
-    x0                = 0.05,     # kg/kg
-    solid_density     = 1.1,      # g/cm³
-    solvent_density   = 0.8,      # g/cm³
-    flow_rate         = 5.0,      # cm³/min
-    bed_height        = 20.0,     # cm
-    bed_diameter      = 2.0,      # cm
-    particle_diameter = 0.05,     # cm
-    solid_mass        = 50.0,     # g
-    solubility        = 0.005,    # kg/kg
-    viscosity         = 0.06,     # mPa·s
-)
-
-# Sovová PDE model
-result = sovova_multi(curve)
-
-# Empirical models — same ExtractionCurve, just change the model
-result = fit_model(Reverchon(),           curve)
-result = fit_model(VeljkovicMilenovic(),  curve)
-result = fit_model(PKM(),                 curve)
-```
-
-See the [Usage](@ref) page for multi-curve examples and export options.
-
-### References
+## References
 
 1. Sovová, H. **Rate of the vegetable oil extraction with supercritical CO₂ — I. Modelling of extraction curves.** *Chemical Engineering Science*, v. 49, n. 3, p. 409–414, 1994. [doi:10.1016/0009-2509(94)87012-8](https://doi.org/10.1016/0009-2509(94)87012-8)
 

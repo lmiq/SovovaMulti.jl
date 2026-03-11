@@ -17,7 +17,7 @@ The installer will:
 The manual installation can be performed on all platforms (Linux/MacOS/Windows), and is necessary for the
 advanced (command-line) use of the package.  
 
-There are to installation modes: the *Julia SovovaMulti Application* and the *Julia SovovaMulti Package*. 
+There are to installation modes: the SovovaMulti *Application* and the SovovaMulti *Package*. 
 
 - The *Application* is a standalone executable, linked to the desktop icon, and that allows the execution of the package using the graphical user interface. 
 - The *Package* has the same functionalities, but is accessible through the Julia REPL (the terminal) and can be used for advanced scripting, large-scale multiple fits, etc. Installation of the package also gives access to the graphical user interface.

@@ -7,12 +7,134 @@ using XLSX
 using HTTP
 using JSON3
 
-export ExtractionCurve, SovovaResult, sovova_multi, TextTable, ExcelTable, sovovagui, create_shortcut, export_results
+export ExtractionCurve, TextTable, ExcelTable, sovovagui, create_shortcut, export_results
 export ExtractionModel, ParamSpec, ModelFitResult, fit_model, param_spec, simulate
 export Sovova, Reverchon, Esquivel, Zekovic, Nguyen, VeljkovicMilenovic, PKM, SplineModel
 
 const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)
+
+"""
+    ExtractionCurve(; data, temperature, ...)
+
+Experimental extraction curve data and operating conditions for one experiment.
+
+# Required keyword arguments
+- `data::Matrix{Float64}`: table with column 1 = extraction times (min) and
+  columns 2:N = cumulative extracted mass for each replicate (g).
+  A `Matrix` can be read from files with [`TextTable`](@ref) or [`ExcelTable`](@ref).
+- `temperature::Float64`: temperature (K)
+- `porosity::Float64`: bed porosity (dimensionless)
+- `x0::Float64`: total extractable yield (mass fraction, kg/kg)
+- `solid_density::Float64`: solid density (g/cm³)
+- `solvent_density::Float64`: solvent density (g/cm³)
+- `flow_rate::Float64`: solvent flow rate (cm³/min)
+- `bed_height::Float64`: bed height (cm)
+- `bed_diameter::Float64`: bed diameter (cm)
+- `particle_diameter::Float64`: particle diameter (cm)
+- `solid_mass::Float64`: mass of solid (g)
+- `solubility::Float64`: solubility (kg/kg)
+- `viscosity::Float64`: solvent dynamic viscosity (mPa·s = cP)
+
+# Optional keyword arguments  
+- `diffusivity::Float64`: solute diffusivity in solvent (m²/s).
+  If not provided, estimated from Stokes-Einstein equation.
+- `nh::Int`: spatial discretization steps (default: 5)
+- `nt::Int`: temporal discretization steps (default: 2500)
+
+# Example
+```julia
+data = TextTable("experiment.txt")  # or ExcelTable("experiment.xlsx")
+curve = ExtractionCurve(data=data, temperature=313.15, ...)
+```
+"""
+struct ExtractionCurve
+    # Experimental data (SI units internally)
+    t::Vector{Float64}         # times (s)
+    m_ext::Vector{Float64}     # cumulative extracted mass (kg)
+    # Operating conditions (SI)
+    temperature::Float64       # K
+    porosity::Float64          # dimensionless  
+    x0::Float64                # total extractable (kg/kg)
+    solid_density::Float64     # kg/m³
+    solvent_density::Float64   # kg/m³
+    flow_rate::Float64         # m³/s
+    bed_height::Float64        # m
+    bed_diameter::Float64      # m
+    particle_diameter::Float64 # m
+    solid_mass::Float64        # kg
+    solubility::Float64        # kg/kg
+    viscosity::Float64         # Pa·s
+    diffusivity::Float64       # m²/s
+    # Discretization
+    nh::Int
+    nt::Int
+end
+
+function ExtractionCurve(;
+    data::Matrix{Float64},
+    temperature::Float64,
+    porosity::Float64,
+    x0::Float64,
+    solid_density::Float64,
+    solvent_density::Float64,
+    flow_rate::Float64,
+    bed_height::Float64,
+    bed_diameter::Float64,
+    particle_diameter::Float64,
+    solid_mass::Float64,
+    solubility::Float64,
+    viscosity::Float64,
+    diffusivity::Union{Float64,Nothing} = nothing,
+    nh::Int = 5,
+    nt::Int = 2500,
+)
+    # Extract time column and replicate m_ext columns from the data matrix.
+    # Column 1 = time (min), columns 2:end = replicate m_ext values (g).
+    # Each time is repeated once per replicate to build interleaved vectors.
+    nreps = size(data, 2) - 1
+    nrows = size(data, 1)
+    t = Vector{Float64}(undef, nrows * nreps)
+    m_ext = Vector{Float64}(undef, nrows * nreps)
+    k = 0
+    for i in 1:nrows
+        for j in 1:nreps
+            k += 1
+            t[k] = data[i, 1]
+            m_ext[k] = data[i, j + 1]
+        end
+    end
+
+    # Convert from user-friendly units (g, cm, min) to SI (kg, m, s)
+    t_si = t .* 60.0
+    m_ext_si = m_ext ./ 1000.0
+    solid_density_si = solid_density * 1000.0
+    solvent_density_si = solvent_density * 1000.0
+    flow_rate_si = flow_rate / (60.0 * 1000.0)
+    bed_height_si = bed_height / 100.0
+    bed_diameter_si = bed_diameter / 100.0
+    particle_diameter_si = particle_diameter / 100.0
+    solid_mass_si = solid_mass / 1000.0
+    viscosity_si = viscosity / 1000.0  # mPa·s -> Pa·s
+
+    # Compute diffusivity from Stokes-Einstein if not provided
+    dab = if diffusivity === nothing
+        kB * temperature / (6π * r_solute * viscosity_si)
+    else
+        diffusivity
+    end
+
+    ExtractionCurve(
+        t_si, m_ext_si,
+        temperature, porosity, x0,
+        solid_density_si, solvent_density_si, flow_rate_si,
+        bed_height_si, bed_diameter_si, particle_diameter_si,
+        solid_mass_si, solubility, viscosity_si, dab,
+        nh, nt,
+    )
+end
+
+include("./models.jl")
 
 """
     sovovagui(; port=9876, launch=true)
@@ -329,159 +451,6 @@ function ExcelTable(filename::AbstractString; sheet::Union{Int,AbstractString}=1
     return Float64.(data)
 end
 
-"""
-    ExtractionCurve(; data, temperature, ...)
-
-Experimental extraction curve data and operating conditions for one experiment.
-
-# Required keyword arguments
-- `data::Matrix{Float64}`: table with column 1 = extraction times (min) and
-  columns 2:N = cumulative extracted mass for each replicate (g).
-  A `Matrix` can be read from files with [`TextTable`](@ref) or [`ExcelTable`](@ref).
-- `temperature::Float64`: temperature (K)
-- `porosity::Float64`: bed porosity (dimensionless)
-- `x0::Float64`: total extractable yield (mass fraction, kg/kg)
-- `solid_density::Float64`: solid density (g/cm³)
-- `solvent_density::Float64`: solvent density (g/cm³)
-- `flow_rate::Float64`: solvent flow rate (cm³/min)
-- `bed_height::Float64`: bed height (cm)
-- `bed_diameter::Float64`: bed diameter (cm)
-- `particle_diameter::Float64`: particle diameter (cm)
-- `solid_mass::Float64`: mass of solid (g)
-- `solubility::Float64`: solubility (kg/kg)
-- `viscosity::Float64`: solvent dynamic viscosity (mPa·s = cP)
-
-# Optional keyword arguments  
-- `diffusivity::Float64`: solute diffusivity in solvent (m²/s).
-  If not provided, estimated from Stokes-Einstein equation.
-- `nh::Int`: spatial discretization steps (default: 5)
-- `nt::Int`: temporal discretization steps (default: 2500)
-
-# Example
-```julia
-data = TextTable("experiment.txt")  # or ExcelTable("experiment.xlsx")
-curve = ExtractionCurve(data=data, temperature=313.15, ...)
-```
-"""
-struct ExtractionCurve
-    # Experimental data (SI units internally)
-    t::Vector{Float64}         # times (s)
-    m_ext::Vector{Float64}     # cumulative extracted mass (kg)
-    # Operating conditions (SI)
-    temperature::Float64       # K
-    porosity::Float64          # dimensionless  
-    x0::Float64                # total extractable (kg/kg)
-    solid_density::Float64     # kg/m³
-    solvent_density::Float64   # kg/m³
-    flow_rate::Float64         # m³/s
-    bed_height::Float64        # m
-    bed_diameter::Float64      # m
-    particle_diameter::Float64 # m
-    solid_mass::Float64        # kg
-    solubility::Float64        # kg/kg
-    viscosity::Float64         # Pa·s
-    diffusivity::Float64       # m²/s
-    # Discretization
-    nh::Int
-    nt::Int
-end
-
-function ExtractionCurve(;
-    data::Matrix{Float64},
-    temperature::Float64,
-    porosity::Float64,
-    x0::Float64,
-    solid_density::Float64,
-    solvent_density::Float64,
-    flow_rate::Float64,
-    bed_height::Float64,
-    bed_diameter::Float64,
-    particle_diameter::Float64,
-    solid_mass::Float64,
-    solubility::Float64,
-    viscosity::Float64,
-    diffusivity::Union{Float64,Nothing} = nothing,
-    nh::Int = 5,
-    nt::Int = 2500,
-)
-    # Extract time column and replicate m_ext columns from the data matrix.
-    # Column 1 = time (min), columns 2:end = replicate m_ext values (g).
-    # Each time is repeated once per replicate to build interleaved vectors.
-    nreps = size(data, 2) - 1
-    nrows = size(data, 1)
-    t = Vector{Float64}(undef, nrows * nreps)
-    m_ext = Vector{Float64}(undef, nrows * nreps)
-    k = 0
-    for i in 1:nrows
-        for j in 1:nreps
-            k += 1
-            t[k] = data[i, 1]
-            m_ext[k] = data[i, j + 1]
-        end
-    end
-
-    # Convert from user-friendly units (g, cm, min) to SI (kg, m, s)
-    t_si = t .* 60.0
-    m_ext_si = m_ext ./ 1000.0
-    solid_density_si = solid_density * 1000.0
-    solvent_density_si = solvent_density * 1000.0
-    flow_rate_si = flow_rate / (60.0 * 1000.0)
-    bed_height_si = bed_height / 100.0
-    bed_diameter_si = bed_diameter / 100.0
-    particle_diameter_si = particle_diameter / 100.0
-    solid_mass_si = solid_mass / 1000.0
-    viscosity_si = viscosity / 1000.0  # mPa·s -> Pa·s
-
-    # Compute diffusivity from Stokes-Einstein if not provided
-    dab = if diffusivity === nothing
-        kB * temperature / (6π * r_solute * viscosity_si)
-    else
-        diffusivity
-    end
-
-    ExtractionCurve(
-        t_si, m_ext_si,
-        temperature, porosity, x0,
-        solid_density_si, solvent_density_si, flow_rate_si,
-        bed_height_si, bed_diameter_si, particle_diameter_si,
-        solid_mass_si, solubility, viscosity_si, dab,
-        nh, nt,
-    )
-end
-
-"""
-    SovovaResult
-
-Result of multi-curve Sovová model fitting.
-
-# Fields
-- `kya::Vector{Float64}`: fluid-phase mass transfer coefficients (1/s), one per curve  
-- `kxa::Vector{Float64}`: solid-phase mass transfer coefficients (1/s), one per curve
-- `xk_ratio::Float64`: ratio xk/x0 (shared across all curves)
-- `xk::Vector{Float64}`: xk = xk_ratio * x0 for each curve (kg/kg)
-- `tcer::Vector{Float64}`: CER period duration for each curve (s)
-- `ycal::Vector{Vector{Float64}}`: calculated extraction curves (kg)
-- `objective::Float64`: sum of squared residuals at optimum
-"""
-struct SovovaResult
-    kya::Vector{Float64}
-    kxa::Vector{Float64}
-    xk_ratio::Float64
-    xk::Vector{Float64}
-    tcer::Vector{Float64}
-    ycal::Vector{Vector{Float64}}
-    objective::Float64
-end
-
-function Base.show(io::IO, r::SovovaResult)
-    nexp = length(r.kya)
-    println(io, "SovovaResult ($(nexp) curve$(nexp > 1 ? "s" : "")):")
-    println(io, "  xk/x0 = ", r.xk_ratio)
-    println(io, "  objective (SSR) = ", r.objective)
-    for i in 1:nexp
-        println(io, "  Curve $i: kya = $(r.kya[i]), kxa = $(r.kxa[i]), xk = $(r.xk[i]), tcer = $(r.tcer[i]) s")
-    end
-end
 
 """
     SimWorkspace
@@ -583,31 +552,8 @@ function simulate!(ws::SimWorkspace, curve::ExtractionCurve, kya, kxa, xk)
     return ycal
 end
 
-"""
-    sovova_multi(curves::Vector{ExtractionCurve}; kwargs...)
-    sovova_multi(curve::ExtractionCurve; kwargs...)
-
-Fit the Sovová supercritical extraction model to one or more extraction curves simultaneously.
-
-The model fits per-curve parameters `kya` (fluid-phase mass transfer coefficient) and
-`kxa` (solid-phase mass transfer coefficient), plus a shared parameter `xk/x0` 
-(ratio of easily accessible solute to total extractable).
-
-# Keyword arguments
-- `kya_bounds::Tuple{Float64,Float64}`: bounds for kya (default: `(0.0, 0.05)`)
-- `kxa_bounds::Tuple{Float64,Float64}`: bounds for kxa (default: `(0.0, 0.005)`)
-- `xk_ratio_bounds::Tuple{Float64,Float64}`: bounds for xk/x0 (default: `(0.0, 1.0)`)
-- `maxevals::Int`: maximum number of function evaluations (default: `50000`)
-- `tracemode::Symbol`: verbosity of optimizer output (default: `:silent`). Use `:compact` or `:verbose` for progress.
-
-# Returns
-- `SovovaResult`: fitted model parameters and calculated curves.
-"""
-function sovova_multi(curve::ExtractionCurve; kwargs...)
-    sovova_multi([curve]; kwargs...)
-end
-
-function sovova_multi(
+function fit_model(
+    ::Sovova,
     curves::Vector{ExtractionCurve};
     kya_bounds::Tuple{Float64,Float64} = (0.0, 0.05),
     kxa_bounds::Tuple{Float64,Float64} = (0.0, 0.005),
@@ -673,11 +619,28 @@ function sovova_multi(
         ycal_all[iexp] = simulate(c, kya_vec[iexp], kxa_vec[iexp], xk_vec[iexp])
     end
 
-    return SovovaResult(
-        kya_vec, kxa_vec, xk_ratio, xk_vec, tcer_vec,
-        ycal_all, best_f,
+    # Build flat spec + params for the unified show()
+    _spec   = ParamSpec[ParamSpec("xk/x0", "xk/x₀ — accessible solute ratio (—)", 0.0, 1.0)]
+    _params = Float64[xk_ratio]
+    for i in 1:nexp
+        push!(_spec,   ParamSpec("kya[$i]",  "kya — fluid-phase mass transfer coeff. (1/s)",  0.0, 0.05))
+        push!(_params, kya_vec[i])
+        push!(_spec,   ParamSpec("kxa[$i]",  "kxa — solid-phase mass transfer coeff. (1/s)",  0.0, 0.005))
+        push!(_params, kxa_vec[i])
+        push!(_spec,   ParamSpec("tCER[$i]", "tCER — CER period duration (s)",                0.0, Inf))
+        push!(_params, tcer_vec[i])
+    end
+
+    return ModelFitResult(
+        Sovova(), ycal_all, best_f,
+        (spec=_spec, params=_params,
+         kya=kya_vec, kxa=kxa_vec, xk_ratio=xk_ratio, xk=xk_vec, tcer=tcer_vec),
     )
 end
+
+# Default: no model argument → Sovová PDE model
+fit_model(curve::ExtractionCurve; kwargs...)              = fit_model(Sovova(), [curve]; kwargs...)
+fit_model(curves::Vector{ExtractionCurve}; kwargs...)     = fit_model(Sovova(), curves; kwargs...)
 
 """
     export_results(filename, result, curve)
@@ -691,16 +654,16 @@ Export fitting results to a file. The format is inferred from the extension:
 
 # Example
 ```julia
-result = sovova_multi(curve)
+result = fit_model(curve)
 export_results("results.txt",  result, curve)
 export_results("results.xlsx", result, curve)
 ```
 """
-function export_results(filename::AbstractString, result::SovovaResult, curve::ExtractionCurve)
+function export_results(filename::AbstractString, result::ModelFitResult, curve::ExtractionCurve)
     export_results(filename, result, [curve])
 end
 
-function export_results(filename::AbstractString, result::SovovaResult, curves::Vector{ExtractionCurve})
+function export_results(filename::AbstractString, result::ModelFitResult, curves::Vector{ExtractionCurve})
     if endswith(lowercase(filename), ".xlsx")
         _export_xlsx(filename, result, curves)
     else
@@ -730,7 +693,7 @@ function _deinterleave(c::ExtractionCurve, ycal::Vector{Float64})
 end
 
 # ── Parameter name/value/unit tuples ─────────────────────────────────────────
-function _fitted_params(result::SovovaResult, ic::Int)
+function _fitted_params(result::ModelFitResult{Sovova}, ic::Int)
     [("kya",   result.kya[ic],   "1/s"),
      ("kxa",   result.kxa[ic],   "1/s"),
      ("xk/x0", result.xk_ratio,  ""),
@@ -835,7 +798,6 @@ function _export_xlsx(filename, result, curves)
     end
 end
 
-include("models.jl")
 include("gui.jl")
 
 end

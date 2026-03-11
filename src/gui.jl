@@ -2,7 +2,7 @@
 
 # ── Uploaded data cache ──────────────────────────────────────────────
 const _gui_data   = Ref{Union{Nothing,Matrix{Float64}}}(nothing)
-const _gui_result = Ref{Any}(nothing)  # holds (SovovaResult, ExtractionCurve) after a run
+const _gui_result = Ref{Any}(nothing)  # holds (ModelFitResult, ExtractionCurve) after a run
 
 # ── HTML page ────────────────────────────────────────────────────────
 const _GUI_HTML = raw"""
@@ -607,7 +607,7 @@ function _start_gui(port::Int, launch::Bool)
             maxevals = Int(p[:maxevals])
 
             if model_name == "sovova"
-                result = sovova_multi(curve;
+                result = fit_model(Sovova(), curve;
                     kya_bounds      = (Float64(p[:kya_lo]), Float64(p[:kya_hi])),
                     kxa_bounds      = (Float64(p[:kxa_lo]), Float64(p[:kxa_hi])),
                     xk_ratio_bounds = (Float64(p[:xk_ratio_lo]), Float64(p[:xk_ratio_hi])),

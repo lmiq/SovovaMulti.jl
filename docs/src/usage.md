@@ -1,4 +1,4 @@
-# Usage
+# Advanced usage
 
 ## Defining an extraction curve
 
@@ -106,11 +106,14 @@ curve = ExtractionCurve(
 
 ## Fitting a single curve
 
+Call [`fit_model`](@ref) with an [`ExtractionCurve`](@ref). With no model argument it
+defaults to the Sovová PDE model:
+
 ```julia
-result = sovova_multi(curve)
+result = fit_model(curve)
 ```
 
-The returned [`SovovaResult`](@ref) contains the fitted parameters:
+The returned [`ModelFitResult`](@ref) contains the fitted parameters:
 
 ```julia
 println(result.kya)       # fluid-phase mass transfer coefficients
@@ -137,7 +140,7 @@ curve1 = ExtractionCurve(; data=data1, temperature=313.15, ...)
 curve2 = ExtractionCurve(; data=data2, temperature=323.15, ...)
 curve3 = ExtractionCurve(; data=data3, temperature=333.15, ...)
 
-result = sovova_multi([curve1, curve2, curve3])
+result = fit_model([curve1, curve2, curve3])
 ```
 
 Access per-curve results by index:
@@ -157,7 +160,7 @@ The fitting uses global optimization from
 Control the optimization via keyword arguments:
 
 ```julia
-result = sovova_multi(curves;
+result = fit_model(curves;
     kya_bounds      = (0.0, 0.05),   # bounds for kya (1/s)
     kxa_bounds      = (0.0, 0.005),  # bounds for kxa (1/s)
     xk_ratio_bounds = (0.0, 1.0),    # bounds for xk/x0
@@ -170,7 +173,7 @@ If the default bounds do not cover your expected parameter range, adjust them ac
 To see optimizer progress, set `tracemode = :compact`:
 
 ```julia
-result = sovova_multi(curve; tracemode=:compact)
+result = fit_model(curve; tracemode=:compact)
 ```
 
 ## Complete example with real data
@@ -223,7 +226,7 @@ curve = ExtractionCurve(
     viscosity         = 0.067739, # mPa·s
 )
 
-result = sovova_multi(curve)
+result = fit_model(curve)
 
 # Print fitted parameters
 println("kya  = ", result.kya[1], " 1/s")
@@ -231,6 +234,94 @@ println("kxa  = ", result.kxa[1], " 1/s")
 println("xk   = ", result.xk[1], " kg/kg")
 println("tCER = ", result.tcer[1], " s")
 println("SSR  = ", result.objective)
+```
+
+## Fitting alternative kinetic models
+
+In addition to the Sovová PDE model, SovovaMulti provides several empirical kinetic
+models that can be fitted with [`fit_model`](@ref):
+
+| Model type | Reference | Parameters |
+|:---|:---|:---|
+| `Reverchon()` | Reverchon (1993) | k₁ — rate constant (1/s) |
+| `Esquivel()` | Esquivel (1999) | k₁ — rate constant (1/s) |
+| `Nguyen()` | Nguyen (1991) | k₁ — solid-phase transfer coefficient (1/s) |
+| `Zekovic()` | Žeković (2003) | k₁ — accessible yield fraction (—); k₂ — rate constant (1/s) |
+| `VeljkovicMilenovic()` | Veljković & Milošević (2002) | k₁ — leakage rate (1/s); k₂ — diffusion rate (1/s); k₃ — easily accessible fraction (—) |
+| `PKM()` | Fiori et al. (2012) | k₁ — easily accessible fraction (—); k₂ — fluid-phase rate (1/s); k₃ — solid-phase rate (1/s) |
+| `SplineModel()` | — | k₁ — CER rate (1/s); k₂ — CER end time (s); k₃ — FER rate (1/s); k₄ — FER end time (s) |
+
+### Single-curve fit
+
+```julia
+result = fit_model(Reverchon(), curve)
+println(result)           # prints all fitted parameters and SSR
+println(result.params)    # [k1]
+println(result.ycal[1])   # calculated curve (kg)
+println(result.objective) # SSR
+```
+
+### Multi-curve fit
+
+When a vector of curves is passed, all model parameters are **shared** across curves:
+
+```julia
+result = fit_model(VeljkovicMilenovic(), [curve1, curve2, curve3])
+println(result.params)    # [k1, k2, k3]
+println(result.ycal[2])   # calculated curve 2 (kg)
+```
+
+### Custom parameter bounds
+
+Each model has default parameter bounds (see [`param_spec`](@ref)). Override them with
+the `param_bounds` keyword — a vector of `(lower, upper)` tuples, one per parameter:
+
+```julia
+result = fit_model(PKM(), curve;
+    param_bounds = [(0.0, 1.0), (0.0, 0.01), (0.0, 0.001)],
+    maxevals     = 100_000,
+    tracemode    = :compact,
+)
+```
+
+### Accessing results
+
+The returned [`ModelFitResult`](@ref) stores fitted parameters in `result.params`
+in the same order as the model's parameter list:
+
+```julia
+result = fit_model(Zekovic(), curve)
+println(result.params[1])  # k1 — accessible yield fraction
+println(result.params[2])  # k2 — rate constant (1/s)
+println(result.ycal[1])    # calculated curve (kg)
+println(result.objective)  # SSR
+```
+
+All results share the same `show` format:
+
+```
+julia> result                       # Zekovic example
+ModelFitResult{Zekovic} — 1 curve fitted
+  SSR = 4.2000e-06
+
+  Parameter │         Value │ Description
+  ──────────┼───────────────┼─────────────────────────────────────────
+  k1        │ +8.200000e-01 │ k₁ — accessible yield fraction (—)
+  k2        │ +3.100000e-04 │ k₂ — rate constant (1/s)
+
+julia> result                       # Sovová default, 2 curves
+ModelFitResult{Sovova} — 2 curves fitted
+  SSR = 3.8021e-07
+
+  Parameter │         Value │ Description
+  ──────────┼───────────────┼─────────────────────────────────────────────────────
+  xk/x0     │ +6.521700e-01 │ xk/x₀ — accessible solute ratio (—)
+  kya[1]    │ +2.000000e-02 │ kya — fluid-phase mass transfer coeff. (1/s)
+  kxa[1]    │ +2.000000e-03 │ kxa — solid-phase mass transfer coeff. (1/s)
+  tCER[1]   │ +1.234500e+03 │ tCER — CER period duration (s)
+  kya[2]    │ +1.500000e-02 │ kya — fluid-phase mass transfer coeff. (1/s)
+  kxa[2]    │ +1.800000e-03 │ kxa — solid-phase mass transfer coeff. (1/s)
+  tCER[2]   │ +1.543200e+03 │ tCER — CER period duration (s)
 ```
 
 ## Graphical User Interface
