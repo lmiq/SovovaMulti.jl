@@ -1,104 +1,73 @@
 # Installation
 
-## Installing Julia
+## Windows
 
-### Windows
+For Windows we provide an installer which should take care of all the steps: 
 
-#### Option 1
+[Download Windows Installer](https://github.com/lmiq/SovovaMulti.jl/releases/download/v0.1.0/SovovaMulti-Installer.exe)
 
-Install Julia directly from the Windows Store. Double click on the Julia icon to open the Julia REPL.
+The installer will: 
 
-#### Option 2
+1. Install the Julia language if not yet available. 
+2. Install the SovovaMulti application.
+3. Add an icon to your desktop.
 
-1. Download the Julia installer from [https://julialang.org/downloads/](https://julialang.org/downloads/).
-   Choose the **Windows** 64-bit installer (`.exe`).
+## Manual step-by-step installation
 
-2. Run the installer. **Important**: check the box **"Add Julia to PATH"** so that you can
-   run `julia` from any terminal.
+The manual installation can be performed on all platforms (Linux/MacOS/Windows), and is necessary for the
+advanced (command-line) use of the package.  
 
-3. After installation, open **PowerShell** or **Command Prompt** and type:
+There are to installation modes: the *Julia SovovaMulti Application* and the *Julia SovovaMulti Package*. 
 
-   ```
-   julia --version
-   ```
+- The *Application* is a standalone executable, linked to the desktop icon, and that allows the execution of the package using the graphical user interface. 
+- The *Package* has the same functionalities, but is accessible through the Julia REPL (the terminal) and can be used for advanced scripting, large-scale multiple fits, etc. Installation of the package also gives access to the graphical user interface.
 
-   You should see something like `julia version 1.10.x` or later.
+### 1. Installing Julia
 
-!!! tip "Windows tips"
-    - If you use **VS Code**, install the
+Install Julia following the instructions of the official Julia distribution page: [https://julialang.org/downloads/](https://julialang.org/downloads/).
+
+### 2. Installing the SovovaMulti Application
+
+Start the Julia REPL (which will open the `julia>` terminal), use these commands:
+
+```julia-repl
+julia> import Pkg; Pkg.Apps.add("SovovaMulti")
+```
+
+This will add an icon to your desktop, with which you can start the graphical user interface.
+
+### 3. Installing the SovovaMulti Package
+
+The SovovaMulti package is installed similarly, but provides the advanced (command-line) interface that allows programming tasks. Installation is performed with the following command:
+
+```julia-repl
+julia> import Pkg; Pkg.add("SovovaMulti")
+```
+
+The package is then used with:
+
+```julia-repl
+julia> using SovovaMulti
+```
+
+The graphical user interface can also be launched, by executing the `sovovagui()` command.
+
+!!! tip "Advanced usage tips"
+    - If you use **VS Code** for programming and scripting, install the
       [Julia extension](https://marketplace.visualstudio.com/items?itemName=julialang.language-julia)
       for syntax highlighting, inline evaluation, and an integrated REPL.
 
-### macOS
+## Updating
 
-Install Julia via [juliaup](https://github.com/JuliaLang/juliaup):
+To update the *Application*, start the Jula REPL and use:
 
-```bash
-curl -fsSL https://install.julialang.org | sh
+```julia-repl
+julia> import Pkg; Pkg.Apps.update("SovovaMulti")
 ```
 
-Or download the `.dmg` installer from [https://julialang.org/downloads/](https://julialang.org/downloads/).
+To update the *Package*, use:
 
-### Linux
-
-Install Julia via [juliaup](https://github.com/JuliaLang/juliaup):
-
-```bash
-curl -fsSL https://install.julialang.org | sh
+```julia-repl
+julia> import Pkg; Pkg.update("SovovaMulti")
 ```
 
-Or download the tarball from [https://julialang.org/downloads/](https://julialang.org/downloads/)
-and extract it to a directory of your choice, adding the `bin/` subdirectory to your `PATH`.
-
-## Installing SovovaMulti.jl GUI mode
-
-Currently, the development version can be installed with:
-
-```julia
-julia> import Pkg; Pkg.Apps.add(url="https://github.com/lmiq/SovovaMulti.jl")
-
-julia> using SovovaMulti; create_shortcut()
-```
-
-This will create a shortcut in the Desktop, from which you can start the application GUI.
-
-# Other options
-
-Once Julia is installed, start a Julia session and run:
-
-```julia
-julia> import Pkg
-
-julia> Pkg.add("SovovaMulti")
-```
-
-Or, equivalently, press `]` in the Julia REPL to enter the package manager mode and type:
-
-```
-pkg> add SovovaMulti
-```
-
-### Verifying the installation
-
-```julia
-julia> using SovovaMulti
-
-julia> curve = ExtractionCurve(
-           t = [10.0, 30.0, 60.0],
-           m_ext = [0.1, 0.5, 1.0],
-           temperature = 313.15,
-           porosity = 0.4,
-           x0 = 0.05,
-           solid_density = 1.1,
-           solvent_density = 0.8,
-           flow_rate = 5.0,
-           bed_height = 20.0,
-           bed_diameter = 2.0,
-           particle_diameter = 0.05,
-           solid_mass = 50.0,
-           solubility = 0.005,
-           viscosity = 0.06,
-       )
-```
-
-If no error is raised, the package is correctly installed.

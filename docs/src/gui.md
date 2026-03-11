@@ -1,7 +1,13 @@
 # Graphical User Interface
 
 SovovaMulti includes a **built-in web GUI** — no extra packages or configuration required.
-Launch it directly from the Julia REPL:
+By following the [Installation](@ref) instructions you should be able the launch the GUI by clicking
+on the desktop icon that is generated.
+
+## Launch it directly from the Julia REPL:
+
+If the desktop icon is not available, or if you experience issues with the icon launcher, 
+you can, after installnig the Julia package, run it from the REPL, with:
 
 ```julia
 using SovovaMulti
