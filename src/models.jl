@@ -293,8 +293,7 @@ function Base.show(io::IO, r::ModelFitResult)
     nc     = length(r.ycal)
 
     mname = nameof(typeof(r.model))
-    plural = nc > 1 ? "s" : ""
-    println(io, "ModelFitResult{$mname} — $nc curve$plural fitted")
+    println(io, "ModelFitResult{$mname}")
     println(io, "  SSR = $(Printf.@sprintf("%.4e", r.objective))")
     isempty(spec) && return
 
