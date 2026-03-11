@@ -8,7 +8,7 @@ All inputs use **laboratory units** (g, cm, min, mPa·s) — the package convert
 The experimental data is provided as a **matrix** where column 1 is the extraction time (min)
 and columns 2, 3, … are cumulative extracted mass (g) for each replicate:
 
-```julia
+```@example basic
 using SovovaMulti
 
 # Single replicate (2 columns: time, m_ext)
@@ -37,6 +37,23 @@ curve = ExtractionCurve(
     solubility     = 0.005,    # kg/kg
     viscosity      = 0.06,     # mPa·s (= cP)
 )
+```
+
+## Fitting a single curve
+
+Call [`fit_model`](@ref) with an [`ExtractionCurve`](@ref). With no model argument it
+defaults to the Sovová PDE model:
+
+```@example basic
+result = fit_model(curve)
+```
+
+The returned object is a [`ModelFitResult`](@ref).
+
+The calculated extraction curves (in kg) are available as:
+
+```@example basic
+result.ycal[1]  # calculated values for the first (and only) curve
 ```
 
 ## Reading data from files
@@ -104,32 +121,6 @@ curve = ExtractionCurve(
 )
 ```
 
-## Fitting a single curve
-
-Call [`fit_model`](@ref) with an [`ExtractionCurve`](@ref). With no model argument it
-defaults to the Sovová PDE model:
-
-```julia
-result = fit_model(curve)
-```
-
-The returned [`ModelFitResult`](@ref) contains the fitted parameters:
-
-```julia
-println(result.kya)       # fluid-phase mass transfer coefficients
-println(result.kxa)       # solid-phase mass transfer coefficients
-println(result.xk_ratio)  # xk/x0 ratio (shared)
-println(result.xk)        # xk = xk_ratio * x0 for each curve
-println(result.tcer)      # CER period duration (s)
-println(result.objective) # sum of squared residuals
-```
-
-The calculated extraction curves (in kg) are available as:
-
-```julia
-result.ycal[1]  # calculated values for the first (and only) curve
-```
-
 ## Fitting multiple curves simultaneously
 
 Pass a vector of [`ExtractionCurve`](@ref)s to fit all curves at once. Each curve gets its
@@ -181,7 +172,7 @@ result = fit_model(curve; tracemode=:compact)
 The following example uses experimental data from a supercritical CO₂ extraction experiment
 at 333.15 K (data from Mateus et al.), with two replicates:
 
-```julia
+```@example complete
 using SovovaMulti
 
 # Data matrix: column 1 = time (min), columns 2-3 = replicate m_ext (g)
@@ -227,13 +218,6 @@ curve = ExtractionCurve(
 )
 
 result = fit_model(curve)
-
-# Print fitted parameters
-println("kya  = ", result.kya[1], " 1/s")
-println("kxa  = ", result.kxa[1], " 1/s")
-println("xk   = ", result.xk[1], " kg/kg")
-println("tCER = ", result.tcer[1], " s")
-println("SSR  = ", result.objective)
 ```
 
 ## Fitting alternative kinetic models
@@ -253,21 +237,19 @@ models that can be fitted with [`fit_model`](@ref):
 
 ### Single-curve fit
 
-```julia
+```@example complete
 result = fit_model(Reverchon(), curve)
-println(result)           # prints all fitted parameters and SSR
-println(result.params)    # [k1]
-println(result.ycal[1])   # calculated curve (kg)
-println(result.objective) # SSR
 ```
 
 ### Multi-curve fit
 
 When a vector of curves is passed, all model parameters are **shared** across curves:
 
-```julia
-result = fit_model(VeljkovicMilenovic(), [curve1, curve2, curve3])
-println(result.params)    # [k1, k2, k3]
+```@example complete
+result = fit_model(VeljkovicMilenovic(), [curve, curve, curve])
+```
+
+```@example complete
 println(result.ycal[2])   # calculated curve 2 (kg)
 ```
 

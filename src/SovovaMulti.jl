@@ -134,6 +134,37 @@ function ExtractionCurve(;
     )
 end
 
+function Base.show(io::IO, c::ExtractionCurve)
+    rows = (
+        ("Temperature",     c.temperature,                "K"),
+        ("Porosity",        c.porosity,                   "—"),
+        ("x₀",              c.x0,                         "kg/kg"),
+        ("Solid density",   c.solid_density / 1000.0,     "g/cm³"),
+        ("Solvent density", c.solvent_density / 1000.0,   "g/cm³"),
+        ("Flow rate",       c.flow_rate * 60.0 * 1000.0,  "cm³/min"),
+        ("Bed height",      c.bed_height * 100.0,         "cm"),
+        ("Bed diameter",    c.bed_diameter * 100.0,       "cm"),
+        ("Particle diam.",  c.particle_diameter * 100.0,  "cm"),
+        ("Solid mass",      c.solid_mass * 1000.0,        "g"),
+        ("Solubility",      c.solubility,                 "kg/kg"),
+        ("Viscosity",       c.viscosity * 1000.0,         "mPa·s"),
+        ("Diffusivity",     c.diffusivity,                "m²/s"),
+    )
+    w_p = max(16, maximum(length(r[1]) for r in rows))
+    w_v = 13
+    header = "  " * rpad("Property", w_p) * " │ " * lpad("Value", w_v) * " │ Unit"
+    rule   = "  " * "─"^w_p * "─┼─" * "─"^w_v * "─┼─"
+    println(io, "ExtractionCurve")
+    println(io, header)
+    println(io, rule)
+    for (name, val, unit) in rows
+        vstr = Printf.@sprintf("%.6g", val)
+        println(io, "  " * rpad(name, w_p) * " │ " * lpad(vstr, w_v) * " │ " * unit)
+    end
+    println(io, rule)
+    print(io, "  $(length(c.t)) data points  ·  nh=$(c.nh), nt=$(c.nt)")
+end
+
 include("./models.jl")
 
 """

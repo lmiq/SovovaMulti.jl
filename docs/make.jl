@@ -1,7 +1,9 @@
 using Documenter
 using SovovaMulti
-
 using Documenter.Remotes: GitHub
+
+ENV["LINES"] = 10
+ENV["COLUMNS"] = 120
 
 makedocs(;
     modules=[SovovaMulti],

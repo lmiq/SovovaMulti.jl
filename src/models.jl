@@ -290,7 +290,6 @@ function Base.show(io::IO, r::ModelFitResult)
     data   = getfield(r, :_data)
     spec   = data.spec
     params = data.params
-    nc     = length(r.ycal)
 
     mname = nameof(typeof(r.model))
     println(io, "ModelFitResult{$mname}")
