@@ -259,9 +259,10 @@ var
   Lines: TArrayOfString;
 begin
   GScriptPath := ExpandConstant('{tmp}\sovova_install.jl');
-  SetArrayLength(Lines, 2);
+  SetArrayLength(Lines, 3);
   Lines[0] := 'import Pkg';
   Lines[1] := 'Pkg.Apps.add("SovovaMulti")';
+  Lines[2] := 'using SovovaMulti; create_shortcut()';
   SaveStringsToFile(GScriptPath, Lines, False);
 end;
 

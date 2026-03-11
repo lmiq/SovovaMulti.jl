@@ -263,10 +263,14 @@ function _create_shortcut_windows(; location, port, name)
     isdir(dest_dir) || error("Destination directory not found: $dest_dir")
     lnk = joinpath(dest_dir, name * ".lnk")
 
-    # Prefer the Pkg.Apps-installed .cmd wrapper if available
+    # Prefer the Pkg.Apps-installed wrapper if available (.bat on Julia 1.12+, .cmd on older)
     julia_bin_dir = joinpath(homedir(), ".julia", "bin")
-    app_cmd = let p = joinpath(julia_bin_dir, "sovovamulti.cmd")
-        isfile(p) ? p : nothing
+    app_cmd = let
+        for ext in (".cmd", ".bat")
+            p = joinpath(julia_bin_dir, "sovovamulti" * ext)
+            isfile(p) && return p
+        end
+        nothing
     end
 
     # Point the shortcut directly at the target executable.
