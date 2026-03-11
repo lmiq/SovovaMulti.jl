@@ -277,11 +277,15 @@ function _create_shortcut_windows(; location, port, name)
     # Prefer the Pkg.Apps-installed wrapper if available (.bat on Julia 1.12+, .cmd on older)
     julia_bin_dir = joinpath(homedir(), ".julia", "bin")
     app_cmd = let
+        found = nothing
         for ext in (".cmd", ".bat")
             p = joinpath(julia_bin_dir, "sovovamulti" * ext)
-            isfile(p) && return p
+            if isfile(p)
+                found = p
+                break
+            end
         end
-        nothing
+        found
     end
 
     # Point the shortcut directly at the target executable.
