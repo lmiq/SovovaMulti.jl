@@ -408,8 +408,7 @@ begin
     GInstPhase := 2;
     GInstPhaseL.Caption := CustomMessage('InstDone');
     GInstWaitL.Caption  := '';
-    WizardForm.NextButton.Enabled := True;
-    WizardForm.NextButton.Click;
+    WizardForm.NextButton.Enabled := True;  // user clicks Next to finish
   end;
 end;
 
