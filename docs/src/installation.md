@@ -4,7 +4,7 @@
 
 For Windows we provide an installer which should take care of all the steps: 
 
-[Download Windows Installer](https://github.com/lmiq/SovovaMulti.jl/releases/download/v1.1.3/SovovaMulti-Installer.exe)
+[Download Windows Installer](https://github.com/lmiq/SovovaMulti.jl/releases/download/v1.1.4/SovovaMulti-Installer.exe)
 
 The installer will: 
 
