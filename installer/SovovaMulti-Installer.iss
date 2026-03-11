@@ -24,6 +24,7 @@ AppPublisherURL={#AppURL}
 DefaultDirName={tmp}\{#AppName}-setup
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+DisableReadyPage=yes
 ; Run as current user so Julia installs to %LOCALAPPDATA% (its default)
 PrivilegesRequired=lowest
 OutputDir=Output
@@ -39,19 +40,38 @@ Compression=lzma2
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-english.CheckingJulia=Checking for Julia {#JuliaMinMajor}.{#JuliaMinMinor}+...
-english.InstallingJulia=Installing Julia via winget (this may take a few minutes)...
-english.InstallingPackage=Installing {#AppName} — downloading packages, please wait...
+english.InstPageTitle=Installing {#AppName}
+english.InstPageDesc=Please wait while {#AppName} is being installed.
+english.InstallingJulia=Installing Julia via winget...
+english.InstallingPackage=Installing {#AppName}...
+english.InstDone=Installation complete.
+english.ShowDetails=Show details
+english.HideDetails=Hide details
 english.WingetMissing=winget (Windows Package Manager) was not found.%n%nPlease install Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ manually from https://julialang.org/downloads/ and then re-run this installer.
 english.NeedJuliaInfo=Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ was not found and will be installed automatically via winget.%n%nClick OK to continue.
-english.JuliaNotFoundAfterInstall=Could not locate julia.exe after installation.%n%nPlease restart the installer or install Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ manually from https://julialang.org/downloads/ and re-run.
+english.JuliaNotFoundAfterInstall=Could not locate julia.exe after installation.%n%nPlease install Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ manually from https://julialang.org/downloads/ and re-run this installer.
 english.JuliaTooOld=An older version of Julia was found, but {#AppName} requires Julia {#JuliaMinMajor}.{#JuliaMinMinor}+.%n%nPlease upgrade Julia from https://julialang.org/downloads/ and then re-run this installer.
+english.PkgInstFailed=Failed to install {#AppName}.%n%nYou can install it manually from Julia with:%n%n    import Pkg%n    Pkg.Apps.add("{#AppName}")
 
 [Code]
 var
-  GJuliaExe:   String;  // resolved path to julia.exe
-  GNeedJulia:  Boolean; // True when Julia must be installed
-  GScriptPath: String;  // temp .jl file passed to julia
+  GJuliaExe:    String;   // resolved path to julia.exe
+  GNeedJulia:   Boolean;  // True when Julia must be installed
+  GScriptPath:  String;   // temp .jl file passed to julia
+
+  // Install page
+  GInstPage:    TWizardPage;
+  GInstPhaseL:  TLabel;   // current phase  ("Installing Julia...")
+  GInstWaitL:   TLabel;   // animated "Please wait..."
+  GDetailsBtn:  TButton;  // toggle output pane
+  GDetailsMemo: TMemo;    // output pane (hidden by default)
+  GInstTimer:   TTimer;
+  GDotIdx:      Integer;
+  GInstPhase:   Integer;  // 0=julia  1=pkg  2=done  -1=error
+  GSentinel:    String;
+  GLogFile:     String;
+  GInstStarted: Boolean;
+  GDetailsOpen: Boolean;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -196,6 +216,154 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
+// Background launcher
+//
+// Writes a batch wrapper that runs ExePath+Params, appends output to GLogFile,
+// and stores the exit code in GSentinel.  Launched with ewNoWait so the wizard
+// remains responsive.  OnInstTimer polls GSentinel for completion.
+// ---------------------------------------------------------------------------
+
+procedure LaunchBackground(ExePath, Params: String);
+var
+  BatchPath, CmdArgs: String;
+  Lines: TArrayOfString;
+  RC: Integer;
+begin
+  DeleteFile(GSentinel);
+  BatchPath := ExpandConstant('{tmp}\sovova_bg.bat');
+  SetArrayLength(Lines, 3);
+  Lines[0] := '@echo off';
+  Lines[1] := '"' + ExePath + '" ' + Params + ' >> "' + GLogFile + '" 2>&1';
+  Lines[2] := 'echo %ERRORLEVEL% > "' + GSentinel + '"';
+  SaveStringsToFile(BatchPath, Lines, False);
+  CmdArgs := '/C "' + BatchPath + '"';
+  Exec(ExpandConstant('{cmd}'), CmdArgs, '', SW_HIDE, ewNoWait, RC);
+end;
+
+// ---------------------------------------------------------------------------
+// Details pane toggle
+// ---------------------------------------------------------------------------
+
+procedure RefreshMemo;
+var
+  Lines: TArrayOfString;
+  I: Integer;
+begin
+  if not GDetailsOpen then Exit;
+  if not FileExists(GLogFile) then Exit;
+  if not LoadStringsFromFile(GLogFile, Lines) then Exit;
+  GDetailsMemo.Lines.Clear;
+  for I := 0 to GetArrayLength(Lines) - 1 do
+    GDetailsMemo.Lines.Add(Lines[I]);
+  // Scroll to bottom
+  GDetailsMemo.SelStart := Length(GDetailsMemo.Text);
+  GDetailsMemo.SelLength := 0;
+end;
+
+procedure OnDetailsClick(Sender: TObject);
+begin
+  GDetailsOpen := not GDetailsOpen;
+  if GDetailsOpen then begin
+    GDetailsBtn.Caption := CustomMessage('HideDetails');
+    GDetailsMemo.Visible := True;
+    RefreshMemo;
+  end else begin
+    GDetailsBtn.Caption := CustomMessage('ShowDetails');
+    GDetailsMemo.Visible := False;
+  end;
+end;
+
+// ---------------------------------------------------------------------------
+// Install phases
+// ---------------------------------------------------------------------------
+
+procedure StartPkgInstall; forward;
+
+procedure StartJuliaInstall;
+begin
+  GInstPhase := 0;
+  GDotIdx    := 0;
+  GSentinel  := ExpandConstant('{tmp}\sovova_julia_done.txt');
+  GInstPhaseL.Caption := CustomMessage('InstallingJulia');
+  LaunchBackground(WingetExePath,
+    'install --id Julialang.Julia --silent --accept-package-agreements' +
+    ' --accept-source-agreements');
+  GInstTimer.Enabled := True;
+end;
+
+procedure StartPkgInstall;
+begin
+  GInstPhase := 1;
+  GDotIdx    := 0;
+  GSentinel  := ExpandConstant('{tmp}\sovova_pkg_done.txt');
+  GInstPhaseL.Caption := CustomMessage('InstallingPackage');
+  LaunchBackground(GJuliaExe, '"' + GScriptPath + '"');
+  GInstTimer.Enabled := True;
+end;
+
+// ---------------------------------------------------------------------------
+// Timer callback — animates the wait text and checks for phase completion
+// ---------------------------------------------------------------------------
+
+procedure OnInstTimer(Sender: TObject);
+var
+  Lines: TArrayOfString;
+  ExitCode, CurPhase: Integer;
+begin
+  // Animate "Please wait" dots
+  case GDotIdx mod 4 of
+    0: GInstWaitL.Caption := 'Please wait';
+    1: GInstWaitL.Caption := 'Please wait.';
+    2: GInstWaitL.Caption := 'Please wait..';
+    3: GInstWaitL.Caption := 'Please wait...';
+  end;
+  GDotIdx := GDotIdx + 1;
+
+  // Refresh output pane if open
+  RefreshMemo;
+
+  // Wait for sentinel
+  if not FileExists(GSentinel) then Exit;
+
+  GInstTimer.Enabled := False;
+  CurPhase := GInstPhase;
+
+  // Read exit code written by the batch wrapper
+  ExitCode := 0;
+  if LoadStringsFromFile(GSentinel, Lines) and (GetArrayLength(Lines) > 0) then
+    ExitCode := StrToIntDef(Trim(Lines[0]), 0);
+
+  if CurPhase = 0 then begin
+    // Julia install: winget sometimes returns non-zero even on success.
+    // Verify by detection rather than relying on the exit code.
+    if not DetectJulia then
+      GJuliaExe := FindJuliaInLocalPrograms;
+    if GJuliaExe = '' then begin
+      GInstPhase := -1;
+      RefreshMemo;
+      MsgBox(CustomMessage('JuliaNotFoundAfterInstall'), mbError, MB_OK);
+      WizardForm.Close;
+      Exit;
+    end;
+    StartPkgInstall;
+  end else begin
+    // Pkg install: exit code is reliable
+    RefreshMemo;
+    if ExitCode <> 0 then begin
+      GInstPhase := -1;
+      MsgBox(CustomMessage('PkgInstFailed'), mbError, MB_OK);
+      WizardForm.Close;
+      Exit;
+    end;
+    GInstPhase := 2;
+    GInstPhaseL.Caption := CustomMessage('InstDone');
+    GInstWaitL.Caption  := '';
+    WizardForm.NextButton.Enabled := True;
+    WizardForm.NextButton.Click;
+  end;
+end;
+
+// ---------------------------------------------------------------------------
 // Inno Setup event functions
 // ---------------------------------------------------------------------------
 
@@ -204,6 +372,7 @@ begin
   Result := True;
   GNeedJulia := not DetectJulia;
   CreateInstallScript;
+  GLogFile := ExpandConstant('{tmp}\sovova_install_log.txt');
 
   if GNeedJulia then begin
     if DetectAnyJulia then begin
@@ -221,50 +390,83 @@ begin
   end;
 end;
 
-// Called by BeforeInstall on the Pkg.Apps.add step, after winget has finished.
-procedure RefreshJuliaExe;
+procedure InitializeWizard;
+var
+  Surface: TPanel;
+  W, Y: Integer;
 begin
-  if GJuliaExe <> '' then Exit; // already found
-  if not DetectJulia then begin
-    // Last-resort scan — winget may have installed without updating PATH yet
-    GJuliaExe := FindJuliaInLocalPrograms;
-    if GJuliaExe = '' then begin
-      MsgBox(CustomMessage('JuliaNotFoundAfterInstall'), mbError, MB_OK);
-      // Installer will still attempt 'julia' from PATH as a fallback
-      GJuliaExe := 'julia';
-    end;
-  end;
+  // Custom install page — shown after the (instant) wpInstalling step.
+  GInstPage := CreateCustomPage(wpInstalling,
+    CustomMessage('InstPageTitle'), CustomMessage('InstPageDesc'));
+  Surface := GInstPage.Surface;
+  W := Surface.Width;
+  Y := 16;
+
+  // Current phase label
+  GInstPhaseL := TLabel.Create(Surface);
+  GInstPhaseL.Parent  := Surface;
+  GInstPhaseL.Left    := 0;
+  GInstPhaseL.Top     := Y;
+  GInstPhaseL.Width   := W;
+  GInstPhaseL.Caption := '';
+  Y := Y + 24;
+
+  // "Please wait..." animation label
+  GInstWaitL := TLabel.Create(Surface);
+  GInstWaitL.Parent    := Surface;
+  GInstWaitL.Left      := 0;
+  GInstWaitL.Top       := Y;
+  GInstWaitL.Width     := W;
+  GInstWaitL.Caption   := '';
+  GInstWaitL.Font.Color := $00888888;
+  Y := Y + 32;
+
+  // "Show details" button
+  GDetailsBtn := TButton.Create(Surface);
+  GDetailsBtn.Parent   := Surface;
+  GDetailsBtn.Left     := 0;
+  GDetailsBtn.Top      := Y;
+  GDetailsBtn.Width    := 110;
+  GDetailsBtn.Height   := 23;
+  GDetailsBtn.Caption  := CustomMessage('ShowDetails');
+  GDetailsBtn.OnClick  := @OnDetailsClick;
+  Y := Y + 30;
+
+  // Output memo (hidden by default)
+  GDetailsMemo := TMemo.Create(Surface);
+  GDetailsMemo.Parent    := Surface;
+  GDetailsMemo.Left      := 0;
+  GDetailsMemo.Top       := Y;
+  GDetailsMemo.Width     := W;
+  GDetailsMemo.Height    := Surface.Height - Y;
+  GDetailsMemo.ReadOnly  := True;
+  GDetailsMemo.ScrollBars := ssVertical;
+  GDetailsMemo.Font.Name := 'Courier New';
+  GDetailsMemo.Font.Size := 8;
+  GDetailsMemo.Visible   := False;
+
+  // Timer drives animation and sentinel polling
+  GInstTimer          := TTimer.Create(WizardForm);
+  GInstTimer.Interval := 300;
+  GInstTimer.Enabled  := False;
+  GInstTimer.OnTimer  := @OnInstTimer;
 end;
 
-function ShouldInstallJulia: Boolean;
+procedure CurPageChanged(CurPageID: Integer);
 begin
-  Result := GNeedJulia;
+  if CurPageID <> GInstPage.ID then Exit;
+  if GInstStarted then Exit;
+  GInstStarted := True;
+
+  // Lock wizard navigation while work is in progress
+  WizardForm.NextButton.Enabled := False;
+  WizardForm.BackButton.Visible := False;
+
+  // Start fresh log file
+  SaveStringToFile(GLogFile, '', False);
+
+  if GNeedJulia then
+    StartJuliaInstall
+  else
+    StartPkgInstall;
 end;
-
-function GetJuliaExe(Param: String): String;
-begin
-  Result := GJuliaExe;
-  if Result = '' then
-    Result := 'julia';
-end;
-
-function GetScriptPath(Param: String): String;
-begin
-  Result := GScriptPath;
-end;
-
-function GetWingetExePath(Param: String): String;
-begin
-  Result := WingetExePath;
-end;
-
-// ---------------------------------------------------------------------------
-// Run steps (executed in order during the install phase)
-// ---------------------------------------------------------------------------
-
-[Run]
-; Step 1: Install Julia via winget (skipped when Julia >= 1.12 already present)
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -Command ""& '{code:GetWingetExePath}' install --id Julialang.Julia --silent --accept-package-agreements --accept-source-agreements"""; StatusMsg: {cm:InstallingJulia}; Check: ShouldInstallJulia; Flags: runhidden waituntilterminated
-
-; Step 2: Install the SovovaMulti package (runs a temp .jl script to avoid quoting issues)
-Filename: "{code:GetJuliaExe}"; Parameters: """{code:GetScriptPath}"""; StatusMsg: {cm:InstallingPackage}; BeforeInstall: RefreshJuliaExe; Flags: runhidden waituntilterminated
