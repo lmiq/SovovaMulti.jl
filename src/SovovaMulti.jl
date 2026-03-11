@@ -270,37 +270,37 @@ function _create_shortcut_windows(; location, port, name)
     end
 
     app_to_run = something(app_cmd, julia_exe)  # .cmd path or julia.exe as fallback
+    cmd_args   = app_cmd !== nothing ? "--port $port" : "-m SovovaMulti --port $port"
 
-    # Write a small .ps1 launcher — PowerShell supports -WindowStyle Hidden natively,
-    # which is more reliable than VBScript on modern Windows.
-    ps1_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.ps1")
+    # Write a VBScript launcher.
+    # wscript.exe is the GUI-mode script host — it has no console window of its own.
+    # Shell.Run with intWindowStyle=0 creates the child process hidden (no terminal flash).
+    # bWaitOnReturn=False detaches Julia from wscript.exe so wscript exits immediately
+    # and the Julia server keeps running independently.
+    #
+    # VBScript string quoting: "" inside "..." is one literal double-quote character.
+    # We want Shell.Run to receive:  "C:\...\sovovamulti.cmd" --port 9876
+    # So the VBScript literal is:   """C:\...\sovovamulti.cmd"" --port 9876"
+    vbs_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.vbs")
     mkpath(julia_bin_dir)
-    ps1_args = if app_cmd !== nothing
-        "--port $port"
-    else
-        "-m SovovaMulti --port $port"
-    end
-    # Single-quote the path for PowerShell (escape embedded single quotes)
-    ps1_exe_q = replace(app_to_run, "'" => "''")
-    write(ps1_path, "& '$ps1_exe_q' $ps1_args\r\n")
+    write(vbs_path,
+        "CreateObject(\"WScript.Shell\").Run \"\"\"$(app_to_run)\"\" $(cmd_args)\", 0, False\r\n")
 
-    # PowerShell executable (always present on Win 7+)
-    powershell_exe = joinpath(get(ENV, "SystemRoot", "C:\\Windows"),
-        "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    # wscript.exe is always at %SystemRoot%\System32\wscript.exe
+    wscript_exe = joinpath(get(ENV, "SystemRoot", "C:\\Windows"), "System32", "wscript.exe")
 
     esc(s) = replace(s, "'" => "''")  # escape for PS single-quoted strings
-    # Build the Arguments string that will be stored in the .lnk
-    # The ps1_path goes inside double-quotes so spaces in the path are handled.
-    lnk_args = "-WindowStyle Hidden -ExecutionPolicy Bypass -File \"$(replace(ps1_path, "\"" => "\\\""))\""
+    # Shortcut Arguments = VBS path in double-quotes (handles spaces in path)
+    lnk_args = "\"$(vbs_path)\""
 
     ps = """
     \$ws = New-Object -ComObject WScript.Shell
     \$sc = \$ws.CreateShortcut('$(esc(lnk))')
-    \$sc.TargetPath      = '$(esc(powershell_exe))'
-    \$sc.Arguments       = '$(replace(lnk_args, "'" => "''"))'
+    \$sc.TargetPath       = '$(esc(wscript_exe))'
+    \$sc.Arguments        = '$(esc(lnk_args))'
     \$sc.WorkingDirectory = '$(esc(homedir()))'
-    \$sc.Description     = 'Launch SovovaMulti GUI'
-    \$sc.IconLocation    = '$(esc(julia_exe))'
+    \$sc.Description      = 'Launch SovovaMulti GUI'
+    \$sc.IconLocation     = '$(esc(julia_exe))'
     \$sc.Save()
     """
     run(`powershell -NoProfile -NonInteractive -Command $ps`)
