@@ -1,8 +1,8 @@
 # SovovaMulti
 
-[![Build Status](https://github.com/lmiq/SovovaMulti.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/lmiq/SovovaMulti.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/stable/)
 [![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://lmiq.github.io/SovovaMulti.jl/dev/)
+[![Build Status](https://github.com/lmiq/SovovaMulti.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/lmiq/SovovaMulti.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 **SovovaMulti** fits kinetic models for supercritical fluid extraction (SFE) to experimental extraction curves, using global optimization.
 
@@ -20,48 +20,6 @@
 | [Spline — Rodrigues (2003)](https://doi.org/10.1021/jf0257493) | `k1`–`k4` | Piecewise-linear CER/FER/DC |
 
 The Sovová model additionally supports **simultaneous fitting of multiple curves** sharing a common `xk/x0` parameter.
-
-## Installation
-
-```julia
-import Pkg
-Pkg.Apps.add("SovovaMulti")
-```
-
-This will create a desktop shortcut for the app. Advanced command-line (Julia REPL) use is also possible.
-
-Supported platforms: **Linux**, **macOS**, **Windows**.
-
-## Usage
-
-### Graphical interface
-
-Double-click the desktop shortcut created during installation, or from the Julia REPL:
-
-```julia
-using SovovaMulti
-sovovagui()
-```
-
-Upload a data file, select a model from the dropdown, fill in operating conditions and optimizer bounds, then click **Run Fitting**.
-
-### Julia API
-
-```julia
-using SovovaMulti
-
-curve = ExtractionCurve(data = data, x0 = 0.05, solid_mass = 50.0, ...)
-
-# Sovová PDE model (default — single or multiple curves)
-result = fit_model(curve)
-result = fit_model(Sovova(), curve)   # explicit equivalent
-
-# Any empirical model
-result = fit_model(Reverchon(),          curve)
-result = fit_model(VeljkovicMilenovic(), curve)
-result = fit_model(PKM(),                curve)
-# etc.
-```
 
 ## References
 

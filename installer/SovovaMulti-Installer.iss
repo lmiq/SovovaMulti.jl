@@ -45,6 +45,7 @@ english.InstallingPackage=Installing {#AppName} — downloading packages, please
 english.WingetMissing=winget (Windows Package Manager) was not found.%n%nPlease install Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ manually from https://julialang.org/downloads/ and then re-run this installer.
 english.NeedJuliaInfo=Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ was not found and will be installed automatically via winget.%n%nClick OK to continue.
 english.JuliaNotFoundAfterInstall=Could not locate julia.exe after installation.%n%nPlease restart the installer or install Julia {#JuliaMinMajor}.{#JuliaMinMinor}+ manually from https://julialang.org/downloads/ and re-run.
+english.JuliaTooOld=An older version of Julia was found, but {#AppName} requires Julia {#JuliaMinMajor}.{#JuliaMinMinor}+.%n%nPlease upgrade Julia from https://julialang.org/downloads/ and then re-run this installer.
 
 [Code]
 var
@@ -150,11 +151,36 @@ begin
   end;
 end;
 
+// Return True if any julia.exe is reachable, regardless of version.
+function DetectAnyJulia: Boolean;
+var
+  Output: String;
+begin
+  Result := False;
+  if RunAndCapture('julia', '--version', Output) then begin
+    Result := True;
+    Exit;
+  end;
+  Result := FindJuliaInLocalPrograms <> '';
+end;
+
+// Return the full path to winget.exe, trying the known AppX location before PATH.
+function WingetExePath: String;
+var
+  WingetLocal: String;
+begin
+  WingetLocal := ExpandConstant('{localappdata}\Microsoft\WindowsApps\winget.exe');
+  if FileExists(WingetLocal) then
+    Result := WingetLocal
+  else
+    Result := 'winget';
+end;
+
 function WingetAvailable: Boolean;
 var
   Output: String;
 begin
-  Result := RunAndCapture('winget', '--version', Output);
+  Result := RunAndCapture(WingetExePath, '--version', Output);
 end;
 
 // Write the Julia install script to a temp file (avoids shell quoting hell).
@@ -180,6 +206,12 @@ begin
   CreateInstallScript;
 
   if GNeedJulia then begin
+    if DetectAnyJulia then begin
+      // Julia is present but too old — ask the user to upgrade manually.
+      MsgBox(CustomMessage('JuliaTooOld'), mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
     if not WingetAvailable then begin
       MsgBox(CustomMessage('WingetMissing'), mbError, MB_OK);
       Result := False;
@@ -221,13 +253,18 @@ begin
   Result := GScriptPath;
 end;
 
+function GetWingetExePath(Param: String): String;
+begin
+  Result := WingetExePath;
+end;
+
 // ---------------------------------------------------------------------------
 // Run steps (executed in order during the install phase)
 // ---------------------------------------------------------------------------
 
 [Run]
 ; Step 1: Install Julia via winget (skipped when Julia >= 1.12 already present)
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -Command ""winget install --id Julialang.Julia --silent --accept-package-agreements --accept-source-agreements"""; StatusMsg: {cm:InstallingJulia}; Check: ShouldInstallJulia; Flags: runhidden waituntilterminated
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -Command ""& '{code:GetWingetExePath}' install --id Julialang.Julia --silent --accept-package-agreements --accept-source-agreements"""; StatusMsg: {cm:InstallingJulia}; Check: ShouldInstallJulia; Flags: runhidden waituntilterminated
 
 ; Step 2: Install the SovovaMulti package (runs a temp .jl script to avoid quoting issues)
 Filename: "{code:GetJuliaExe}"; Parameters: """{code:GetScriptPath}"""; StatusMsg: {cm:InstallingPackage}; BeforeInstall: RefreshJuliaExe; Flags: runhidden waituntilterminated
