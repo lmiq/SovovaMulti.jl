@@ -269,37 +269,29 @@ function _create_shortcut_windows(; location, port, name)
         isfile(p) ? p : nothing
     end
 
-    app_to_run = something(app_cmd, julia_exe)  # .cmd path or julia.exe as fallback
-    cmd_args   = app_cmd !== nothing ? "--port $port" : "-m SovovaMulti --port $port"
-
-    # Write a VBScript launcher.
-    # wscript.exe is the GUI-mode script host — it has no console window of its own.
-    # Shell.Run with intWindowStyle=0 creates the child process hidden (no terminal flash).
-    # bWaitOnReturn=False detaches Julia from wscript.exe so wscript exits immediately
-    # and the Julia server keeps running independently.
-    #
-    # VBScript string quoting: "" inside "..." is one literal double-quote character.
-    # We want Shell.Run to receive:  "C:\...\sovovamulti.cmd" --port 9876
-    # So the VBScript literal is:   """C:\...\sovovamulti.cmd"" --port 9876"
-    vbs_path = joinpath(julia_bin_dir, "SovovaMulti_launcher.vbs")
-    mkpath(julia_bin_dir)
-    write(vbs_path,
-        "CreateObject(\"WScript.Shell\").Run \"\"\"$(app_to_run)\"\" $(cmd_args)\", 0, False\r\n")
-
-    # wscript.exe is always at %SystemRoot%\System32\wscript.exe
-    wscript_exe = joinpath(get(ENV, "SystemRoot", "C:\\Windows"), "System32", "wscript.exe")
+    # Point the shortcut directly at the target executable.
+    # Previous versions used a VBScript intermediary (wscript.exe + .vbs), but
+    # VBScript is deprecated and disabled by default on modern Windows (11 24H2+).
+    # Instead we use the shortcut's WindowStyle = 7 (minimized) so the console
+    # opens out of the way while the browser GUI takes focus.
+    if app_cmd !== nothing
+        target_path = app_cmd
+        target_args = "--port $port"
+    else
+        target_path = julia_exe
+        target_args = "-m SovovaMulti -- --port $port"
+    end
 
     esc(s) = replace(s, "'" => "''")  # escape for PS single-quoted strings
-    # Shortcut Arguments = VBS path in double-quotes (handles spaces in path)
-    lnk_args = "\"$(vbs_path)\""
 
     ps = """
     \$ws = New-Object -ComObject WScript.Shell
     \$sc = \$ws.CreateShortcut('$(esc(lnk))')
-    \$sc.TargetPath       = '$(esc(wscript_exe))'
-    \$sc.Arguments        = '$(esc(lnk_args))'
+    \$sc.TargetPath       = '$(esc(target_path))'
+    \$sc.Arguments        = '$(esc(target_args))'
     \$sc.WorkingDirectory = '$(esc(homedir()))'
     \$sc.Description      = 'Launch SovovaMulti GUI'
+    \$sc.WindowStyle      = 7
     \$sc.IconLocation     = '$(esc(julia_exe))'
     \$sc.Save()
     """
