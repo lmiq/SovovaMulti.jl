@@ -60,11 +60,11 @@ english.PkgInstFailed=Failed to install {#AppName}.%n%nYou can install it manual
 // Windows API — timer (TTimer is not available in Inno Setup Pascal)
 // ---------------------------------------------------------------------------
 
-function SetTimer(hWnd: HWND; nIDEvent: NativeUInt; uElapse: UINT;
-  lpTimerFunc: NativeUInt): NativeUInt;
+function SetTimer(hWnd: HWND; nIDEvent: LongWord; uElapse: UINT;
+  lpTimerFunc: LongWord): LongWord;
   external 'SetTimer@user32.dll stdcall';
 
-function KillTimer(hWnd: HWND; nIDEvent: NativeUInt): BOOL;
+function KillTimer(hWnd: HWND; nIDEvent: LongWord): BOOL;
   external 'KillTimer@user32.dll stdcall';
 
 // ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ var
   GDetailsMemo: TMemo;    // output pane (hidden by default)
 
   // Timer state
-  GTimerID:     NativeUInt;
+  GTimerID:     LongWord;
   GDotIdx:      Integer;
 
   // Phase state
@@ -105,7 +105,7 @@ procedure OnInstTimerBody; forward;
 // ---------------------------------------------------------------------------
 
 // TimerProc matches the Windows TIMERPROC signature and delegates to the body.
-procedure TimerProc(hWnd: HWND; uMsg: UINT; idEvent: NativeUInt; dwTime: DWORD);
+procedure TimerProc(hWnd: HWND; uMsg: UINT; idEvent: LongWord; dwTime: DWORD);
 begin
   OnInstTimerBody;
 end;
