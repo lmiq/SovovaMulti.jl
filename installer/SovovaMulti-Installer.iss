@@ -441,7 +441,7 @@ end;
 
 procedure InitializeWizard;
 var
-  Surface: TPanel;
+  Surface: TWinControl;
   W, Y: Integer;
 begin
   // Custom install page — shown after the (instant) wpInstalling step.
