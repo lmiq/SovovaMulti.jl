@@ -186,13 +186,17 @@ function sovovagui(; port::Int=9876, launch::Bool=true)
 end
 
 """
-    julia -m SovovaMulti [--port PORT] [--no-launch]
+    julia -m SovovaMulti [--port PORT] [--no-launch] [--create-shortcut]
 
 Launch the SovovaMulti GUI as a standalone app.
+
+If `--create-shortcut` is passed, a desktop shortcut is created and the app exits
+without starting the GUI.
 """
 function main(args::Vector{String})
     port = 9876
     launch = true
+    do_shortcut = false
     i = 1
     while i <= length(args)
         if args[i] == "--port" && i + 1 <= length(args)
@@ -201,9 +205,16 @@ function main(args::Vector{String})
         elseif args[i] == "--no-launch"
             launch = false
             i += 1
+        elseif args[i] == "--create-shortcut"
+            do_shortcut = true
+            i += 1
         else
             i += 1
         end
+    end
+    if do_shortcut
+        create_shortcut(; port)
+        return 0
     end
     server = sovovagui(; port, launch)
     wait(server)

@@ -259,10 +259,9 @@ var
   Lines: TArrayOfString;
 begin
   GScriptPath := ExpandConstant('{tmp}\sovova_install.jl');
-  SetArrayLength(Lines, 3);
+  SetArrayLength(Lines, 2);
   Lines[0] := 'import Pkg';
   Lines[1] := 'Pkg.Apps.add("SovovaMulti")';
-  Lines[2] := 'using SovovaMulti; create_shortcut()';
   SaveStringsToFile(GScriptPath, Lines, False);
 end;
 
@@ -329,6 +328,19 @@ end;
 // ---------------------------------------------------------------------------
 
 procedure StartPkgInstall; forward;
+
+// Run sovovamulti.bat --create-shortcut to create the desktop icon.
+// Called synchronously after Pkg install succeeds; failure is non-fatal.
+procedure CreateDesktopShortcut;
+var
+  AppBat: String;
+  RC: Integer;
+begin
+  AppBat := ExpandConstant('{%USERPROFILE}\.julia\bin\sovovamulti.bat');
+  if FileExists(AppBat) then
+    Exec(ExpandConstant('{cmd}'), '/C "' + AppBat + '" -- --create-shortcut', '',
+         SW_HIDE, ewWaitUntilTerminated, RC);
+end;
 
 procedure StartJuliaInstall;
 begin
@@ -406,6 +418,8 @@ begin
       WizardForm.Close;
       Exit;
     end;
+    // Create desktop shortcut via the installed app executable
+    CreateDesktopShortcut;
     GInstPhase := 2;
     GInstPhaseL.Caption := CustomMessage('InstDone');
     GInstWaitL.Caption  := '';
