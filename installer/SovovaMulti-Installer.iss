@@ -1,5 +1,6 @@
 ; SovovaMulti Windows Installer
-; Requires Inno Setup 6+: https://jrsoftware.org/isinfo.php
+; Requires Inno Setup 6.1+: https://jrsoftware.org/isinfo.php
+;   (CreateCallback is needed for the progress timer — added in Inno Setup 6.1)
 ;
 ; Build:  Open this file in the Inno Setup Compiler and click Build > Compile.
 ; Output: installer\Output\SovovaMulti-Installer.exe
@@ -54,6 +55,22 @@ english.JuliaTooOld=An older version of Julia was found, but {#AppName} requires
 english.PkgInstFailed=Failed to install {#AppName}.%n%nYou can install it manually from Julia with:%n%n    import Pkg%n    Pkg.Apps.add("{#AppName}")
 
 [Code]
+
+// ---------------------------------------------------------------------------
+// Windows API — timer (TTimer is not available in Inno Setup Pascal)
+// ---------------------------------------------------------------------------
+
+function SetTimer(hWnd: HWND; nIDEvent: NativeUInt; uElapse: UINT;
+  lpTimerFunc: NativeUInt): NativeUInt;
+  external 'SetTimer@user32.dll stdcall';
+
+function KillTimer(hWnd: HWND; nIDEvent: NativeUInt): BOOL;
+  external 'KillTimer@user32.dll stdcall';
+
+// ---------------------------------------------------------------------------
+// Variables
+// ---------------------------------------------------------------------------
+
 var
   GJuliaExe:    String;   // resolved path to julia.exe
   GNeedJulia:   Boolean;  // True when Julia must be installed
@@ -65,8 +82,12 @@ var
   GInstWaitL:   TLabel;   // animated "Please wait..."
   GDetailsBtn:  TButton;  // toggle output pane
   GDetailsMemo: TMemo;    // output pane (hidden by default)
-  GInstTimer:   TTimer;
+
+  // Timer state
+  GTimerID:     NativeUInt;
   GDotIdx:      Integer;
+
+  // Phase state
   GInstPhase:   Integer;  // 0=julia  1=pkg  2=done  -1=error
   GSentinel:    String;
   GLogFile:     String;
@@ -74,7 +95,36 @@ var
   GDetailsOpen: Boolean;
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Forward declarations
+// ---------------------------------------------------------------------------
+
+procedure OnInstTimerBody; forward;
+
+// ---------------------------------------------------------------------------
+// Timer helpers
+// ---------------------------------------------------------------------------
+
+// TimerProc matches the Windows TIMERPROC signature and delegates to the body.
+procedure TimerProc(hWnd: HWND; uMsg: UINT; idEvent: NativeUInt; dwTime: DWORD);
+begin
+  OnInstTimerBody;
+end;
+
+procedure StartInstTimer;
+begin
+  GTimerID := SetTimer(0, 0, 300, CreateCallback(@TimerProc));
+end;
+
+procedure StopInstTimer;
+begin
+  if GTimerID <> 0 then begin
+    KillTimer(0, GTimerID);
+    GTimerID := 0;
+  end;
+end;
+
+// ---------------------------------------------------------------------------
+// Julia / winget detection helpers
 // ---------------------------------------------------------------------------
 
 // Run a command via cmd.exe, capture first line of stdout into Output.
@@ -220,7 +270,7 @@ end;
 //
 // Writes a batch wrapper that runs ExePath+Params, appends output to GLogFile,
 // and stores the exit code in GSentinel.  Launched with ewNoWait so the wizard
-// remains responsive.  OnInstTimer polls GSentinel for completion.
+// remains responsive; OnInstTimerBody polls GSentinel for completion.
 // ---------------------------------------------------------------------------
 
 procedure LaunchBackground(ExePath, Params: String);
@@ -241,7 +291,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Details pane toggle
+// Details pane (output log)
 // ---------------------------------------------------------------------------
 
 procedure RefreshMemo;
@@ -255,8 +305,8 @@ begin
   GDetailsMemo.Lines.Clear;
   for I := 0 to GetArrayLength(Lines) - 1 do
     GDetailsMemo.Lines.Add(Lines[I]);
-  // Scroll to bottom
-  GDetailsMemo.SelStart := Length(GDetailsMemo.Text);
+  // Scroll to bottom by moving caret to end of text
+  GDetailsMemo.SelStart  := Length(GDetailsMemo.Text);
   GDetailsMemo.SelLength := 0;
 end;
 
@@ -264,11 +314,11 @@ procedure OnDetailsClick(Sender: TObject);
 begin
   GDetailsOpen := not GDetailsOpen;
   if GDetailsOpen then begin
-    GDetailsBtn.Caption := CustomMessage('HideDetails');
+    GDetailsBtn.Caption  := CustomMessage('HideDetails');
     GDetailsMemo.Visible := True;
     RefreshMemo;
   end else begin
-    GDetailsBtn.Caption := CustomMessage('ShowDetails');
+    GDetailsBtn.Caption  := CustomMessage('ShowDetails');
     GDetailsMemo.Visible := False;
   end;
 end;
@@ -288,7 +338,7 @@ begin
   LaunchBackground(WingetExePath,
     'install --id Julialang.Julia --silent --accept-package-agreements' +
     ' --accept-source-agreements');
-  GInstTimer.Enabled := True;
+  StartInstTimer;
 end;
 
 procedure StartPkgInstall;
@@ -298,14 +348,14 @@ begin
   GSentinel  := ExpandConstant('{tmp}\sovova_pkg_done.txt');
   GInstPhaseL.Caption := CustomMessage('InstallingPackage');
   LaunchBackground(GJuliaExe, '"' + GScriptPath + '"');
-  GInstTimer.Enabled := True;
+  StartInstTimer;
 end;
 
 // ---------------------------------------------------------------------------
-// Timer callback — animates the wait text and checks for phase completion
+// Timer body — animates the wait text and checks for phase completion
 // ---------------------------------------------------------------------------
 
-procedure OnInstTimer(Sender: TObject);
+procedure OnInstTimerBody;
 var
   Lines: TArrayOfString;
   ExitCode, CurPhase: Integer;
@@ -325,7 +375,7 @@ begin
   // Wait for sentinel
   if not FileExists(GSentinel) then Exit;
 
-  GInstTimer.Enabled := False;
+  StopInstTimer;
   CurPhase := GInstPhase;
 
   // Read exit code written by the batch wrapper
@@ -335,7 +385,7 @@ begin
 
   if CurPhase = 0 then begin
     // Julia install: winget sometimes returns non-zero even on success.
-    // Verify by detection rather than relying on the exit code.
+    // Verify by detection rather than relying solely on the exit code.
     if not DetectJulia then
       GJuliaExe := FindJuliaInLocalPrograms;
     if GJuliaExe = '' then begin
@@ -402,7 +452,7 @@ begin
   W := Surface.Width;
   Y := 16;
 
-  // Current phase label
+  // Current phase label  (e.g. "Installing Julia via winget...")
   GInstPhaseL := TLabel.Create(Surface);
   GInstPhaseL.Parent  := Surface;
   GInstPhaseL.Left    := 0;
@@ -413,15 +463,15 @@ begin
 
   // "Please wait..." animation label
   GInstWaitL := TLabel.Create(Surface);
-  GInstWaitL.Parent    := Surface;
-  GInstWaitL.Left      := 0;
-  GInstWaitL.Top       := Y;
-  GInstWaitL.Width     := W;
-  GInstWaitL.Caption   := '';
+  GInstWaitL.Parent     := Surface;
+  GInstWaitL.Left       := 0;
+  GInstWaitL.Top        := Y;
+  GInstWaitL.Width      := W;
+  GInstWaitL.Caption    := '';
   GInstWaitL.Font.Color := $00888888;
   Y := Y + 32;
 
-  // "Show details" button
+  // "Show details" toggle button
   GDetailsBtn := TButton.Create(Surface);
   GDetailsBtn.Parent   := Surface;
   GDetailsBtn.Left     := 0;
@@ -432,24 +482,18 @@ begin
   GDetailsBtn.OnClick  := @OnDetailsClick;
   Y := Y + 30;
 
-  // Output memo (hidden by default)
+  // Read-only output memo (hidden by default, shown when button is clicked)
   GDetailsMemo := TMemo.Create(Surface);
-  GDetailsMemo.Parent    := Surface;
-  GDetailsMemo.Left      := 0;
-  GDetailsMemo.Top       := Y;
-  GDetailsMemo.Width     := W;
-  GDetailsMemo.Height    := Surface.Height - Y;
-  GDetailsMemo.ReadOnly  := True;
+  GDetailsMemo.Parent     := Surface;
+  GDetailsMemo.Left       := 0;
+  GDetailsMemo.Top        := Y;
+  GDetailsMemo.Width      := W;
+  GDetailsMemo.Height     := Surface.Height - Y;
+  GDetailsMemo.ReadOnly   := True;
   GDetailsMemo.ScrollBars := ssVertical;
-  GDetailsMemo.Font.Name := 'Courier New';
-  GDetailsMemo.Font.Size := 8;
-  GDetailsMemo.Visible   := False;
-
-  // Timer drives animation and sentinel polling
-  GInstTimer          := TTimer.Create(WizardForm);
-  GInstTimer.Interval := 300;
-  GInstTimer.Enabled  := False;
-  GInstTimer.OnTimer  := @OnInstTimer;
+  GDetailsMemo.Font.Name  := 'Courier New';
+  GDetailsMemo.Font.Size  := 8;
+  GDetailsMemo.Visible    := False;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
