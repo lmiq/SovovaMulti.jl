@@ -61,6 +61,7 @@ result.ycal[1]  # calculated values for the first (and only) curve
 ## Reading data from files
 
 Instead of typing the data matrix directly, you can read it from a text or Excel file.
+Example files are available for download: [example\_data.txt](assets/example_data.txt) · [example\_data.xlsx](assets/example_data.xlsx)
 
 ### Text files with [`TextTable`](@ref)
 

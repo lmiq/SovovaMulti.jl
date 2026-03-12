@@ -97,7 +97,7 @@ table.data tr:hover td{background:#fafafa}
 
 <fieldset>
 <legend>Experimental Data</legend>
-<label>Data file (text or .xlsx)
+<label><span>Data file (text or .xlsx) — <a href="/example_data.txt" download>example_data.txt</a> · <a href="/example_data.xlsx" download>example_data.xlsx</a></span>
   <input type="file" id="datafile" accept=".txt,.csv,.dat,.tsv,.xlsx"/>
 </label>
 <div id="preview"></div>
@@ -678,6 +678,21 @@ function _start_gui(port::Int, launch::Bool)
         end
         return HTTP.Response(200, ["Content-Type" => "application/json"], "{}")
     end)
+
+    # Example data file downloads
+    for (route, fname, mime) in (
+        ("/example_data.txt",  "example_data.txt",  "text/plain"),
+        ("/example_data.xlsx", "example_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    )
+        local fname, mime
+        HTTP.register!(router, "GET", route, function(_)
+            path = joinpath(pkgdir(@__MODULE__), "docs", "src", "assets", fname)
+            isfile(path) || return HTTP.Response(404, "Example file not found")
+            HTTP.Response(200,
+                ["Content-Type" => mime, "Content-Disposition" => "attachment; filename=\"$fname\""],
+                read(path))
+        end)
+    end
 
     # Download results endpoint
     HTTP.register!(router, "GET", "/api/download", function(req)
