@@ -50,33 +50,6 @@ Two fitted parameters: `k1` — accessible yield fraction (—); `k2` — rate c
 struct Zekovic           <: ExtractionModel end
 
 """
-    Nguyen()
-
-Solid-resistance single-exponential model (Nguyen et al., 1991):
-
-```math
-m_e(t) = m_{total}\\,(1 - e^{-k_1 t})
-```
-
-One fitted parameter: `k1` — solid-phase transfer coefficient (1/s).
-"""
-struct Nguyen            <: ExtractionModel end
-
-"""
-    VeljkovicMilenovic()
-
-Two-phase leakage-plus-diffusion model (Veljković & Milošević, 2002):
-
-```math
-m_e(t) = m_{total}\\left[k_3(1 - e^{-k_1 t}) + (1-k_3)(1 - e^{-k_2 t})\\right]
-```
-
-Three fitted parameters: `k1` — leakage rate constant (1/s); `k2` — diffusion rate
-constant (1/s); `k3` — easily accessible fraction (—).
-"""
-struct VeljkovicMilenovic <: ExtractionModel end
-
-"""
     PKM()
 
 Parallel-kinetics model (Fiori et al., 2012):
@@ -145,16 +118,6 @@ param_spec(::Zekovic) = [
     ParamSpec("k2", "k₂ — rate constant (1/s)",           0.0,  1e-2),
 ]
 
-param_spec(::Nguyen) = [
-    ParamSpec("k1", "k₁ — solid-phase transfer coefficient (1/s)", 0.0, 1e-2),
-]
-
-param_spec(::VeljkovicMilenovic) = [
-    ParamSpec("k1", "k₁ — leakage rate constant (1/s)",   0.0, 5e-2),
-    ParamSpec("k2", "k₂ — diffusion rate constant (1/s)", 0.0, 5e-3),
-    ParamSpec("k3", "k₃ — easily accessible fraction (—)", 0.0, 1.0),
-]
-
 param_spec(::PKM) = [
     ParamSpec("k1", "k₁ — easily accessible fraction (—)",          0.0, 1.0),
     ParamSpec("k2", "k₂ — fluid-phase rate constant (1/s)",         0.0, 5e-2),
@@ -181,20 +144,6 @@ function simulate(::Zekovic, curve::ExtractionCurve, p::Vector{Float64})
     k1, k2 = p[1], p[2]
     # m_e(t) = m_total * k1 * (1 - exp(-k2 * t))
     return [m_total * k1 * (1.0 - exp(-k2 * t)) for t in curve.t]
-end
-
-function simulate(::Nguyen, curve::ExtractionCurve, p::Vector{Float64})
-    m_total = curve.x0 * curve.solid_mass
-    k1 = p[1]
-    return [m_total * (1.0 - exp(-k1 * t)) for t in curve.t]
-end
-
-function simulate(::VeljkovicMilenovic, curve::ExtractionCurve, p::Vector{Float64})
-    m_total = curve.x0 * curve.solid_mass
-    k1, k2, k3 = p[1], p[2], p[3]
-    # m_e(t) = m_total * [k3*(1-exp(-k1*t)) + (1-k3)*(1-exp(-k2*t))]
-    return [m_total * (k3 * (1.0 - exp(-k1 * t)) + (1.0 - k3) * (1.0 - exp(-k2 * t)))
-            for t in curve.t]
 end
 
 function simulate(::PKM, curve::ExtractionCurve, p::Vector{Float64})
@@ -309,8 +258,7 @@ shared across curves, and returns a [`ModelFitResult{M}`](@ref ModelFitResult).
 
 # Arguments
 - `model`: kinetic model instance. Defaults to `Sovova()` when omitted.
-  Empirical options: `Esquivel()`, `Zekovic()`, `Nguyen()`,
-  `VeljkovicMilenovic()`, `PKM()`, `SplineModel()`.
+  Empirical options: `Esquivel()`, `Zekovic()`, `PKM()`, `SplineModel()`.
 - `curve` / `curves`: a single [`ExtractionCurve`](@ref) or a `Vector` of them.
 
 # Keyword arguments — Sovová model
@@ -334,7 +282,7 @@ result = fit_model(Sovova(), curve)
 
 # Empirical model
 result = fit_model(PKM(), curve)
-result = fit_model(VeljkovicMilenovic(), [curve1, curve2])
+result = fit_model(PKM(), [curve1, curve2])
 ```
 """
 function fit_model(model::ExtractionModel, curve::ExtractionCurve; kwargs...)
@@ -378,8 +326,6 @@ const _MODEL_REGISTRY = Dict{String, ExtractionModel}(
     "sovova"    => Sovova(),
     "esquivel"  => Esquivel(),
     "zekovic"   => Zekovic(),
-    "nguyen"    => Nguyen(),
-    "veljkovic" => VeljkovicMilenovic(),
     "pkm"       => PKM(),
     "spline"    => SplineModel(),
 )

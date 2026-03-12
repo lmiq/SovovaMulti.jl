@@ -13,8 +13,6 @@
 | [Sovová (1994)](https://doi.org/10.1016/0009-2509(94)87012-8) | `kya`, `kxa`, `xk/x0` per curve | PDE (broken & intact cells) |
 | [Esquível (1999)](https://doi.org/10.1016/S0896-8446(99)00014-5) | `k1` | Empirical — single exponential |
 | [Zekovic (2003)](https://doi.org/10.2298/APT0334125Z) | `k1`, `k2` | Empirical — accessible fraction + rate |
-| [Nguyen (1991)](https://doi.org/10.1016/0896-8446(91)90029-6) | `k1` | Empirical — solid-phase resistance |
-| [Veljković & Milenović (2002)](https://doi.org/10.2298/HEMIND0202060V) | `k1`, `k2`, `k3` | Empirical — two-phase leakage + diffusion |
 | [PKM — Maksimovic (2012)](https://doi.org/10.1016/j.proeng.2012.07.571) | `k1`, `k2`, `k3` | Parallel-reaction kinetics |
 | [Spline — Rodrigues (2003)](https://doi.org/10.1021/jf0257493) | `k1`–`k4` | Piecewise-linear CER/FER/DC |
 

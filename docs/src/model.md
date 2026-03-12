@@ -86,41 +86,6 @@ m_e(t) = m_T \, k_1 \left(1 - e^{-k_2 t}\right)
 
 ---
 
-## Nguyen (1991)
-
-Empirical model assuming extraction is entirely controlled by **solid-phase resistance**:
-
-```math
-m_e(t) = m_T \left(1 - e^{-k_1 t}\right)
-```
-
-| Symbol | Description |
-|--------|-------------|
-| ``k_1`` | Solid-phase transfer coefficient (1/s) |
-
-**Reference:** Nguyen, K.; Barton, P.; Spencer, J.S. (1991). *J. Supercrit. Fluids*, 4(1), 40–46. [doi:10.1016/0896-8446(91)90029-6](https://doi.org/10.1016/0896-8446(91)90029-6)
-
----
-
-## Veljković & Milenović (2002)
-
-Two-phase model: a **leakage** phase (easily accessible solute, governed by ``k_1``) and a
-**diffusion** phase (solute inside particles, governed by ``k_2``):
-
-```math
-m_e(t) = m_T \left[ k_3 \left(1 - e^{-k_1 t}\right) + (1 - k_3)\left(1 - e^{-k_2 t}\right) \right]
-```
-
-| Symbol | Description |
-|--------|-------------|
-| ``k_1`` | Leakage (fluid-phase) rate constant (1/s) |
-| ``k_2`` | Diffusion (solid-phase) rate constant (1/s), ``k_2 < k_1`` |
-| ``k_3`` | Easily accessible solute fraction (dimensionless, 0–1) |
-
-**Reference:** Veljković, V.B.; Milenović, D.M. (2002). *Hem. Ind.*, 56(2), 60–67. [doi:10.2298/HEMIND0202060V](https://doi.org/10.2298/HEMIND0202060V)
-
----
-
 ## PKM — Parallel Reaction Kinetics (Maksimovic, 2012)
 
 Interprets extraction as parallel first-order "reactions" from two solid fractions:

@@ -25,8 +25,6 @@ experimental extraction curves. The package:
 | Sovová (1994) | `kya`, `kxa`, `xk/x0` | PDE — broken & intact cells; multi-curve with shared `xk/x0` |
 | Esquível (1999) | `k1` | Empirical — single exponential |
 | Zekovic (2003) | `k1`, `k2` | Empirical — accessible fraction × exponential |
-| Nguyen (1991) | `k1` | Empirical — solid-phase resistance |
-| Veljković & Milenović (2002) | `k1`, `k2`, `k3` | Two-phase leakage + diffusion |
 | PKM — Maksimovic (2012) | `k1`, `k2`, `k3` | Parallel-reaction kinetics |
 | Spline — Rodrigues (2003) | `k1`–`k4` | Piecewise-linear CER/FER/DC |
 

@@ -9,13 +9,11 @@ using JSON3
 
 export ExtractionCurve, TextTable, ExcelTable, sovovagui, create_shortcut, export_results
 export ExtractionModel, ParamSpec, ModelFitResult, fit_model, param_spec, simulate
-export Sovova, Esquivel, Zekovic, Nguyen, VeljkovicMilenovic, PKM, SplineModel
+export Sovova, Esquivel, Zekovic, PKM, SplineModel
 
-const kB = 1.3806503e-23  # Boltzmann constant (J/K)
-const r_solute = 1.0e-9   # solute molecule radius (m)
 
 """
-    ExtractionCurve(; data, temperature, ...)
+    ExtractionCurve(; data, ...)
 
 Experimental extraction curve data and operating conditions for one experiment.
 
@@ -23,7 +21,6 @@ Experimental extraction curve data and operating conditions for one experiment.
 - `data::Matrix{Float64}`: table with column 1 = extraction times (min) and
   columns 2:N = cumulative extracted mass for each replicate (g).
   A `Matrix` can be read from files with [`TextTable`](@ref) or [`ExcelTable`](@ref).
-- `temperature::Float64`: temperature (K)
 - `porosity::Float64`: bed porosity (dimensionless)
 - `x0::Float64`: total extractable yield (mass fraction, kg/kg)
 - `solid_density::Float64`: solid density (g/cm³)
@@ -34,18 +31,15 @@ Experimental extraction curve data and operating conditions for one experiment.
 - `particle_diameter::Float64`: particle diameter (cm)
 - `solid_mass::Float64`: mass of solid (g)
 - `solubility::Float64`: solubility (kg/kg)
-- `viscosity::Float64`: solvent dynamic viscosity (mPa·s = cP)
 
-# Optional keyword arguments  
-- `diffusivity::Float64`: solute diffusivity in solvent (m²/s).
-  If not provided, estimated from Stokes-Einstein equation.
+# Optional keyword arguments
 - `nh::Int`: spatial discretization steps (default: 5)
 - `nt::Int`: temporal discretization steps (default: 2500)
 
 # Example
 ```julia
 data = TextTable("experiment.txt")  # or ExcelTable("experiment.xlsx")
-curve = ExtractionCurve(data=data, temperature=313.15, ...)
+curve = ExtractionCurve(data=data, porosity=0.4, ...)
 ```
 """
 struct ExtractionCurve
@@ -53,8 +47,7 @@ struct ExtractionCurve
     t::Vector{Float64}         # times (s)
     m_ext::Vector{Float64}     # cumulative extracted mass (kg)
     # Operating conditions (SI)
-    temperature::Float64       # K
-    porosity::Float64          # dimensionless  
+    porosity::Float64          # dimensionless
     x0::Float64                # total extractable (kg/kg)
     solid_density::Float64     # kg/m³
     solvent_density::Float64   # kg/m³
@@ -64,8 +57,6 @@ struct ExtractionCurve
     particle_diameter::Float64 # m
     solid_mass::Float64        # kg
     solubility::Float64        # kg/kg
-    viscosity::Float64         # Pa·s
-    diffusivity::Float64       # m²/s
     # Discretization
     nh::Int
     nt::Int
@@ -73,7 +64,6 @@ end
 
 function ExtractionCurve(;
     data::Matrix{Float64},
-    temperature::Float64,
     porosity::Float64,
     x0::Float64,
     solid_density::Float64,
@@ -84,8 +74,6 @@ function ExtractionCurve(;
     particle_diameter::Float64,
     solid_mass::Float64,
     solubility::Float64,
-    viscosity::Float64,
-    diffusivity::Union{Float64,Nothing} = nothing,
     nh::Int = 5,
     nt::Int = 2500,
 )
@@ -115,28 +103,19 @@ function ExtractionCurve(;
     bed_diameter_si = bed_diameter / 100.0
     particle_diameter_si = particle_diameter / 100.0
     solid_mass_si = solid_mass / 1000.0
-    viscosity_si = viscosity / 1000.0  # mPa·s -> Pa·s
-
-    # Compute diffusivity from Stokes-Einstein if not provided
-    dab = if diffusivity === nothing
-        kB * temperature / (6π * r_solute * viscosity_si)
-    else
-        diffusivity
-    end
 
     ExtractionCurve(
         t_si, m_ext_si,
-        temperature, porosity, x0,
+        porosity, x0,
         solid_density_si, solvent_density_si, flow_rate_si,
         bed_height_si, bed_diameter_si, particle_diameter_si,
-        solid_mass_si, solubility, viscosity_si, dab,
+        solid_mass_si, solubility,
         nh, nt,
     )
 end
 
 function Base.show(io::IO, c::ExtractionCurve)
     rows = (
-        ("Temperature",     c.temperature,                "K"),
         ("Porosity",        c.porosity,                   "—"),
         ("x₀",              c.x0,                         "kg/kg"),
         ("Solid density",   c.solid_density / 1000.0,     "g/cm³"),
@@ -147,8 +126,6 @@ function Base.show(io::IO, c::ExtractionCurve)
         ("Particle diam.",  c.particle_diameter * 100.0,  "cm"),
         ("Solid mass",      c.solid_mass * 1000.0,        "g"),
         ("Solubility",      c.solubility,                 "kg/kg"),
-        ("Viscosity",       c.viscosity * 1000.0,         "mPa·s"),
-        ("Diffusivity",     c.diffusivity,                "m²/s"),
     )
     w_p = max(16, maximum(length(r[1]) for r in rows))
     w_v = 13
@@ -752,8 +729,7 @@ function _fitted_params(result::ModelFitResult, ::Int)
 end
 
 function _cond_params(c::ExtractionCurve)
-    [("temperature",       c.temperature,                "K"),
-     ("porosity",          c.porosity,                   ""),
+    [("porosity",          c.porosity,                   ""),
      ("x0",                c.x0,                         "kg/kg"),
      ("solid_density",     c.solid_density  / 1000.0,    "g/cm3"),
      ("solvent_density",   c.solvent_density / 1000.0,   "g/cm3"),
@@ -762,9 +738,7 @@ function _cond_params(c::ExtractionCurve)
      ("bed_diameter",      c.bed_diameter * 100.0,       "cm"),
      ("particle_diameter", c.particle_diameter * 100.0,  "cm"),
      ("solid_mass",        c.solid_mass * 1000.0,        "g"),
-     ("solubility",        c.solubility,                 "kg/kg"),
-     ("viscosity",         c.viscosity * 1000.0,         "mPa.s"),
-     ("diffusivity",       c.diffusivity,                "m2/s")]
+     ("solubility",        c.solubility,                 "kg/kg")]
 end
 
 # ── Text export ───────────────────────────────────────────────────────────────

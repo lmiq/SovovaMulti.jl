@@ -5,7 +5,7 @@ The advanced usage is based on a programming interface. The package can be run i
 ## Defining an extraction curve
 
 Create an [`ExtractionCurve`](@ref) with your experimental data and operating conditions.
-All inputs use **laboratory units** (g, cm, min, mPa·s) — the package converts to SI internally.
+All inputs use **laboratory units** (g, cm, min) — the package converts to SI internally.
 
 The experimental data is provided as a **matrix** where column 1 is the extraction time (min)
 and columns 2, 3, … are cumulative extracted mass (g) for each replicate:
@@ -26,7 +26,6 @@ data = [5.0  0.10;
 
 curve = ExtractionCurve(
     data           = data,
-    temperature    = 313.15,   # K
     porosity       = 0.4,      # dimensionless
     x0             = 0.05,     # kg/kg (total extractable yield)
     solid_density  = 1.1,      # g/cm³
@@ -37,7 +36,6 @@ curve = ExtractionCurve(
     particle_diameter = 0.05,  # cm
     solid_mass     = 50.0,     # g
     solubility     = 0.005,    # kg/kg
-    viscosity      = 0.06,     # mPa·s (= cP)
 )
 ```
 
@@ -76,7 +74,7 @@ A whitespace-delimited text file with an optional comment header (lines starting
 
 ```julia
 data = TextTable("experiment.txt")
-curve = ExtractionCurve(data=data, temperature=313.15, ...)
+curve = ExtractionCurve(data=data, porosity=0.4, ...)
 ```
 
 ### Excel files with [`ExcelTable`](@ref)
@@ -88,26 +86,7 @@ the data matrix (time column + replicate columns):
 data = ExcelTable("experiment.xlsx")              # reads first sheet, skips header
 data = ExcelTable("experiment.xlsx"; sheet=2)      # read a specific sheet
 data = ExcelTable("experiment.xlsx"; header=false)  # no header row to skip
-curve = ExtractionCurve(data=data, temperature=313.15, ...)
-```
-
-### Diffusivity
-
-By default, the solute diffusivity in the solvent is estimated from the **Stokes-Einstein
-equation**:
-
-```math
-D_{AB} = \frac{k_B T}{6\pi r_{\text{solute}} \mu}
-```
-
-where ``r_{\text{solute}} = 10^{-9}`` m. You can override this by passing the `diffusivity`
-keyword (in m²/s):
-
-```julia
-curve = ExtractionCurve(
-    # ... other arguments ...
-    diffusivity = 3.3e-9,  # m²/s
-)
+curve = ExtractionCurve(data=data, porosity=0.4, ...)
 ```
 
 ### Discretization
@@ -130,9 +109,9 @@ Pass a vector of [`ExtractionCurve`](@ref)s to fit all curves at once. Each curv
 own `kya` and `kxa`, but the ratio `xk/x0` is **shared** across all curves:
 
 ```julia
-curve1 = ExtractionCurve(; data=data1, temperature=313.15, ...)
-curve2 = ExtractionCurve(; data=data2, temperature=323.15, ...)
-curve3 = ExtractionCurve(; data=data3, temperature=333.15, ...)
+curve1 = ExtractionCurve(; data=data1, porosity=0.35, ...)
+curve2 = ExtractionCurve(; data=data2, porosity=0.40, ...)
+curve3 = ExtractionCurve(; data=data3, porosity=0.45, ...)
 
 result = fit_model([curve1, curve2, curve3])
 ```
@@ -206,7 +185,6 @@ data = [
 
 curve = ExtractionCurve(
     data              = data,
-    temperature       = 333.15,   # K
     porosity          = 0.7,      # bed porosity (dimensionless)
     x0                = 0.069,    # total extractable yield (kg/kg)
     solid_density     = 1.32,     # g/cm³
@@ -217,7 +195,6 @@ curve = ExtractionCurve(
     particle_diameter = 0.0337,   # cm
     solid_mass        = 100.01,   # g
     solubility        = 0.003166, # kg/kg
-    viscosity         = 0.067739, # mPa·s
 )
 
 result = fit_model(curve)
@@ -231,9 +208,7 @@ models that can be fitted with [`fit_model`](@ref):
 | Model type | Reference | Parameters |
 |:---|:---|:---|
 | `Esquivel()` | Esquivel (1999) | k₁ — rate constant (1/s) |
-| `Nguyen()` | Nguyen (1991) | k₁ — solid-phase transfer coefficient (1/s) |
 | `Zekovic()` | Žeković (2003) | k₁ — accessible yield fraction (—); k₂ — rate constant (1/s) |
-| `VeljkovicMilenovic()` | Veljković & Milošević (2002) | k₁ — leakage rate (1/s); k₂ — diffusion rate (1/s); k₃ — easily accessible fraction (—) |
 | `PKM()` | Fiori et al. (2012) | k₁ — easily accessible fraction (—); k₂ — fluid-phase rate (1/s); k₃ — solid-phase rate (1/s) |
 | `SplineModel()` | — | k₁ — CER rate (1/s); k₂ — CER end time (s); k₃ — FER rate (1/s); k₄ — FER end time (s) |
 
@@ -248,7 +223,7 @@ result = fit_model(Esquivel(), curve)
 When a vector of curves is passed, all model parameters are **shared** across curves:
 
 ```@example complete
-result = fit_model(VeljkovicMilenovic(), [curve, curve, curve])
+result = fit_model(PKM(), [curve, curve, curve])
 ```
 
 ```@example complete

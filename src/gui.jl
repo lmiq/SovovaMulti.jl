@@ -106,7 +106,6 @@ table.data tr:hover td{background:#fafafa}
 <fieldset>
 <legend>Operating Conditions</legend>
 <div class="grid">
-  <label>Temperature (K)        <input type="number" id="temperature" step="any" value="313.15"/></label>
   <label>Porosity                <input type="number" id="porosity" step="any" value="0.4"/></label>
   <label>x₀ (kg/kg)             <input type="number" id="x0" step="any" value="0.05"/></label>
   <label>Solid density (g/cm³)  <input type="number" id="solid_density" step="any" value="1.1"/></label>
@@ -117,7 +116,6 @@ table.data tr:hover td{background:#fafafa}
   <label>Particle diameter (cm) <input type="number" id="particle_diameter" step="any" value="0.05"/></label>
   <label>Solid mass (g)         <input type="number" id="solid_mass" step="any" value="50.0"/></label>
   <label>Solubility (kg/kg)     <input type="number" id="solubility" step="any" value="0.005"/></label>
-  <label>Viscosity (mPa·s)      <input type="number" id="viscosity" step="any" value="0.06"/></label>
 </div>
 </fieldset>
 
@@ -138,8 +136,6 @@ table.data tr:hover td{background:#fafafa}
     <option value="sovova" selected>Sovová (1994) — Broken and Intact Cells</option>
     <option value="esquivel">Esquível (1999) — single exponential</option>
     <option value="zekovic">Zeković (2003) — accessible fraction + rate</option>
-    <option value="nguyen">Nguyen (1991) — solid-phase resistance</option>
-    <option value="veljkovic">Veljković &amp; Milenović (2002) — two-phase</option>
     <option value="pkm">PKM — Maksimovic (2012) — parallel reactions</option>
     <option value="spline">Spline (2003) — piecewise-linear CER/FER/DC</option>
   </select>
@@ -269,9 +265,9 @@ $('datafile').addEventListener('change', async e => {
 
 // ── Run fitting ──────────────────────────────────────────────────
 $('runbtn').addEventListener('click', async () => {
-  const condIds = ['temperature','porosity','x0','solid_density','solvent_density',
+  const condIds = ['porosity','x0','solid_density','solvent_density',
     'flow_rate','bed_height','bed_diameter','particle_diameter','solid_mass',
-    'solubility','viscosity'];
+    'solubility'];
   const body = {};
   for (const id of condIds) {
     const v = parseFloat($(id).value);
@@ -595,7 +591,6 @@ function _start_gui(port::Int, launch::Bool)
 
             curve = ExtractionCurve(
                 data              = data,
-                temperature       = Float64(p[:temperature]),
                 porosity          = Float64(p[:porosity]),
                 x0                = Float64(p[:x0]),
                 solid_density     = Float64(p[:solid_density]),
@@ -606,7 +601,6 @@ function _start_gui(port::Int, launch::Bool)
                 particle_diameter = Float64(p[:particle_diameter]),
                 solid_mass        = Float64(p[:solid_mass]),
                 solubility        = Float64(p[:solubility]),
-                viscosity         = Float64(p[:viscosity]),
             )
 
             maxevals = Int(p[:maxevals])
