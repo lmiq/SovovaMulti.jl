@@ -14,7 +14,6 @@ using Test
                     60.0 1.28;
                     90.0 1.45;
                     120.0 1.52],
-            temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
             solid_density = 1.1,
@@ -25,14 +24,12 @@ using Test
             particle_diameter = 0.05,
             solid_mass = 50.0,
             solubility = 0.005,
-            viscosity = 0.06,
         )
         # Check SI conversions
         @test curve.t[1] ≈ 5.0 * 60.0
         @test curve.m_ext[1] ≈ 0.1 / 1000.0
         @test curve.solid_density ≈ 1.1 * 1000.0
         @test curve.bed_height ≈ 20.0 / 100.0
-        @test curve.diffusivity > 0.0  # computed from Stokes-Einstein
     end
 
     @testset "simulate produces non-negative output" begin
@@ -40,7 +37,6 @@ using Test
         m_vals = collect(range(0.1, 1.5, length=10))
         curve = ExtractionCurve(
             data = hcat(t_vals, m_vals),
-            temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
             solid_density = 1.1,
@@ -51,7 +47,6 @@ using Test
             particle_diameter = 0.05,
             solid_mass = 50.0,
             solubility = 0.005,
-            viscosity = 0.06,
         )
         kya = 0.01
         kxa = 0.001
@@ -68,7 +63,6 @@ using Test
         t_vals = collect(range(5.0, 180.0, length=15))
         curve_for_gen = ExtractionCurve(
             data = hcat(t_vals, zeros(15)),
-            temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
             solid_density = 1.1,
@@ -79,7 +73,6 @@ using Test
             particle_diameter = 0.05,
             solid_mass = 50.0,
             solubility = 0.005,
-            viscosity = 0.06,
         )
 
         # Generate "experimental" data with known parameters
@@ -91,7 +84,6 @@ using Test
         # Now create curve with this synthetic data (convert back to user units)
         curve = ExtractionCurve(
             data = hcat(t_vals, m_ext_true .* 1000.0),
-            temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
             solid_density = 1.1,
@@ -102,7 +94,6 @@ using Test
             particle_diameter = 0.05,
             solid_mass = 50.0,
             solubility = 0.005,
-            viscosity = 0.06,
         )
 
         result = fit_model(curve; maxevals=20_000)
@@ -131,7 +122,6 @@ using Test
                     240.0   3.5332  3.5906;
                     270.0   3.7349  3.8130;
                     300.0   3.9260  4.0177],
-            temperature       = 333.15,
             porosity          = 0.7,
             x0                = 0.069,
             solid_density     = 1.32,
@@ -142,7 +132,6 @@ using Test
             particle_diameter = 0.0337,
             solid_mass        = 100.01,
             solubility        = 0.003166,
-            viscosity         = 0.067739,
         )
 
         result = fit_model(curve; maxevals=50_000)
@@ -181,7 +170,6 @@ using Test
                10.0 5.0  6.0]
         curve = ExtractionCurve(
             data = mat,
-            temperature = 313.15,
             porosity = 0.4,
             x0 = 0.05,
             solid_density = 1.1,
@@ -192,7 +180,6 @@ using Test
             particle_diameter = 0.05,
             solid_mass = 50.0,
             solubility = 0.005,
-            viscosity = 0.06,
         )
         # Should have 6 data points (3 rows × 2 replicates)
         @test length(curve.t) == 6
