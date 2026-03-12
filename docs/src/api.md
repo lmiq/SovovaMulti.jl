@@ -17,13 +17,6 @@ TextTable
 ExcelTable
 ```
 
-## Simulation
-
-```@docs
-SovovaMulti.simulate
-SimWorkspace
-```
-
 ## Fitting
 
 ```@docs
@@ -59,5 +52,4 @@ See the [GUI](@ref "Graphical User Interface") page.
 
 ```@docs
 create_shortcut
-SovovaMulti.main
 ```

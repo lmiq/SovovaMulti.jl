@@ -185,14 +185,14 @@ function sovovagui(; port::Int=9876, launch::Bool=true)
     _start_gui(port, launch)
 end
 
-"""
-    julia -m SovovaMulti [--port PORT] [--no-launch] [--create-shortcut]
-
-Launch the SovovaMulti GUI as a standalone app.
-
-If `--create-shortcut` is passed, a desktop shortcut is created and the app exits
-without starting the GUI.
-"""
+#"""
+#    julia -m SovovaMulti [--port PORT] [--no-launch] [--create-shortcut]
+#
+#Launch the SovovaMulti GUI as a standalone app.
+#
+#If `--create-shortcut` is passed, a desktop shortcut is created and the app exits
+#without starting the GUI.
+#"""
 function main(args::Vector{String})
     port = 9876
     launch = true
@@ -494,12 +494,12 @@ function ExcelTable(filename::AbstractString; sheet::Union{Int,AbstractString}=1
 end
 
 
-"""
-    SimWorkspace
-
-Pre-allocated workspace for the Sovová simulation, avoiding repeated allocations
-in the optimization loop.
-"""
+#"""
+#    SimWorkspace
+#
+#Pre-allocated workspace for the Sovová simulation, avoiding repeated allocations
+#in the optimization loop.
+#"""
 struct SimWorkspace
     xs::Vector{Float64}
     y::Vector{Float64}
@@ -508,14 +508,14 @@ end
 
 SimWorkspace(nh::Int, ndata::Int) = SimWorkspace(Vector{Float64}(undef, nh), zeros(nh + 1), zeros(ndata))
 
-"""
-    simulate(curve::ExtractionCurve, kya, kxa, xk)
-    simulate!(workspace::SimWorkspace, curve::ExtractionCurve, kya, kxa, xk)
-
-Simulate the Sovová extraction model for one curve.
-Returns a vector of calculated cumulative extracted masses at the experimental times.
-The in-place variant `simulate!` reuses pre-allocated workspace arrays.
-"""
+#"""
+#    simulate(curve::ExtractionCurve, kya, kxa, xk)
+#    simulate!(workspace::SimWorkspace, curve::ExtractionCurve, kya, kxa, xk)
+#
+#Simulate the Sovová extraction model for one curve.
+#Returns a vector of calculated cumulative extracted masses at the experimental times.
+#The in-place variant `simulate!` reuses pre-allocated workspace arrays.
+#"""
 function simulate(curve::ExtractionCurve, kya, kxa, xk)
     ws = SimWorkspace(curve.nh, length(curve.t))
     simulate!(ws, curve, kya, kxa, xk)
