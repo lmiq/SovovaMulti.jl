@@ -1,8 +1,8 @@
 ## GUI implementation for SovovaMulti — served via HTTP.jl + JSON3.jl
 
 # ── Uploaded data cache ──────────────────────────────────────────────
-const _gui_data   = Ref{Union{Nothing,Matrix{Float64}}}(nothing)
-const _gui_result = Ref{Any}(nothing)  # holds (ModelFitResult, ExtractionCurve) after a run
+const _gui_data   = Ref{Vector{Union{Nothing,Matrix{Float64}}}}([nothing])
+const _gui_result = Ref{Any}(nothing)  # holds (ModelFitResult, curves) after a run
 
 # ── HTML page ────────────────────────────────────────────────────────
 const _GUI_HTML = raw"""
@@ -41,7 +41,7 @@ button:disabled{background:#93c5fd;cursor:not-allowed}
 table.preview{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
 table.preview th,table.preview td{border:1px solid #e5e7eb;padding:3px 6px;text-align:right}
 table.preview th{background:#f3f4f6}
-/* ── Tabs ── */
+/* ── Main tabs ── */
 .tabs{display:flex;border-bottom:2px solid #d1d5db;margin-bottom:16px}
 .tab-btn{background:none;border:none;padding:10px 28px;font-size:.95rem;font-weight:600;
   color:#6b7280;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;
@@ -50,6 +50,22 @@ table.preview th{background:#f3f4f6}
 .tab-btn:hover:not(.active){color:#374151}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
+/* ── Curve sub-tabs ── */
+.sub-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.sub-tab-btn{background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;
+  padding:5px 14px;font-size:.85rem;font-weight:600;color:#4b5563;cursor:pointer;
+  transition:background .12s,color .12s;color:#fff;background:none;border:none}
+.sub-tab-btn{background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;
+  padding:5px 16px;font-size:.88rem;font-weight:600;color:#4b5563;cursor:pointer}
+.sub-tab-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.sub-tab-btn:hover:not(.active){background:#e5e7eb}
+.curve-panel{display:none}
+.curve-panel.active{display:block}
+/* ── Setup row ── */
+.setup-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.setup-row label{flex-direction:row;align-items:center;gap:8px;font-size:.9rem;
+  color:#374151;white-space:nowrap;font-weight:500}
+.setup-row input[type=number]{width:64px}
 /* ── Spinner ── */
 #spinner{display:none;flex-direction:column;align-items:center;padding:60px 0;gap:20px}
 .spin-ring{width:52px;height:52px;border:5px solid #e5e7eb;border-top-color:#2563eb;
@@ -77,6 +93,8 @@ table.data th{background:#f3f4f6;padding:5px 10px;text-align:right;font-weight:6
   color:#374151;white-space:nowrap;border-bottom:2px solid #e5e7eb}
 table.data td{padding:4px 10px;text-align:right;border-bottom:1px solid #f3f4f6}
 table.data tr:hover td{background:#fafafa}
+.data-curve-hdr td{font-weight:700;color:#1e3a5f;background:#eff6ff !important;
+  text-align:left !important;border-top:2px solid #bfdbfe}
 /* ── Canvas ── */
 #chart{display:block;width:100%;border-radius:8px;margin-bottom:14px}
 </style>
@@ -96,28 +114,16 @@ table.data tr:hover td{background:#fafafa}
 <div id="tab-data" class="tab-panel active">
 
 <fieldset>
-<legend>Experimental Data</legend>
-<label><span>Data file (text or .xlsx) — <a href="/example_data.txt" download>example_data.txt</a> · <a href="/example_data.xlsx" download>example_data.xlsx</a></span>
-  <input type="file" id="datafile" accept=".txt,.csv,.dat,.tsv,.xlsx"/>
-</label>
-<div id="preview"></div>
-</fieldset>
-
-<fieldset>
-<legend>Operating Conditions</legend>
-<div class="grid">
-  <label>Porosity                <input type="number" id="porosity" step="any" value="0.4"/></label>
-  <label>x₀ (kg/kg)             <input type="number" id="x0" step="any" value="0.05"/></label>
-  <label>Solid density (g/cm³)  <input type="number" id="solid_density" step="any" value="1.1"/></label>
-  <label>Solvent density (g/cm³)<input type="number" id="solvent_density" step="any" value="0.8"/></label>
-  <label>Flow rate (cm³/min)    <input type="number" id="flow_rate" step="any" value="5.0"/></label>
-  <label>Bed height (cm)        <input type="number" id="bed_height" step="any" value="20.0"/></label>
-  <label>Bed diameter (cm)      <input type="number" id="bed_diameter" step="any" value="2.0"/></label>
-  <label>Particle diameter (cm) <input type="number" id="particle_diameter" step="any" value="0.05"/></label>
-  <label>Solid mass (g)         <input type="number" id="solid_mass" step="any" value="50.0"/></label>
-  <label>Solubility (kg/kg)     <input type="number" id="solubility" step="any" value="0.005"/></label>
+<legend>Experiment Setup</legend>
+<div class="setup-row">
+  <label>Number of curves
+    <input type="number" id="ncurves" min="1" max="10" value="1" style="width:64px"/>
+  </label>
 </div>
 </fieldset>
+
+<div class="sub-tabs" id="curve-tab-btns"></div>
+<div id="curve-panels"></div>
 
 <div id="status"></div>
 <div class="btn-row">
@@ -196,7 +202,7 @@ table.data tr:hover td{background:#fafafa}
 <script>
 const $ = id => document.getElementById(id);
 
-// ── Tab switching ─────────────────────────────────────────────────
+// ── Main tab switching ────────────────────────────────────────────
 function showTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === name));
@@ -205,18 +211,123 @@ function showTab(name) {
 }
 document.querySelectorAll('.tab-btn').forEach(b =>
   b.addEventListener('click', () => showTab(b.dataset.tab)));
-
-// ── "Next" button: advance from Data tab to Model tab ─────────────
 $('nextbtn').addEventListener('click', () => showTab('model'));
 
-// ── Current parameter specs for the selected model ───────────
+// ── Condition field definitions ───────────────────────────────────
+const COND_FIELDS = [
+  {id:'porosity',          label:'Porosity',               value:'0.4'},
+  {id:'x0',               label:'x₀ (kg/kg)',             value:'0.05'},
+  {id:'solid_density',    label:'Solid density (g/cm³)',  value:'1.1'},
+  {id:'solvent_density',  label:'Solvent density (g/cm³)',value:'0.8'},
+  {id:'flow_rate',        label:'Flow rate (cm³/min)',     value:'5.0'},
+  {id:'bed_height',       label:'Bed height (cm)',         value:'20.0'},
+  {id:'bed_diameter',     label:'Bed diameter (cm)',       value:'2.0'},
+  {id:'particle_diameter',label:'Particle diam. (cm)',     value:'0.05'},
+  {id:'solid_mass',       label:'Solid mass (g)',          value:'50.0'},
+  {id:'solubility',       label:'Solubility (kg/kg)',      value:'0.005'},
+];
+
+// ── Curve state ───────────────────────────────────────────────────
+let nCurves = 1;
+let curveLoaded = [false];
+
+function cid(ci, name) { return 'c' + ci + '_' + name; }
+
+function buildCurvePanel(ci) {
+  const condHtml = COND_FIELDS.map(f =>
+    `<label>${f.label} <input type="number" id="${cid(ci,f.id)}" step="any" value="${f.value}"/></label>`
+  ).join('');
+  return `<div class="curve-panel${ci===0?' active':''}" id="cpanel${ci}">
+<fieldset>
+<legend>Experimental Data</legend>
+<label><span>Data file (text or .xlsx) — <a href="/example_data.txt" download>example .txt</a> · <a href="/example_data.xlsx" download>example .xlsx</a></span>
+  <input type="file" id="${cid(ci,'file')}" accept=".txt,.csv,.dat,.tsv,.xlsx"/>
+</label>
+<div id="${cid(ci,'preview')}"></div>
+</fieldset>
+<fieldset>
+<legend>Operating Conditions</legend>
+<div class="grid">${condHtml}</div>
+</fieldset>
+</div>`;
+}
+
+function buildCurveTabs() {
+  $('curve-tab-btns').innerHTML = Array.from({length:nCurves}, (_,i) =>
+    `<button class="sub-tab-btn${i===0?' active':''}" onclick="showCurveTab(${i})">Curve ${i+1}</button>`
+  ).join('');
+}
+
+function showCurveTab(ci) {
+  document.querySelectorAll('.sub-tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', i===ci));
+  document.querySelectorAll('.curve-panel').forEach((p,i) =>
+    p.classList.toggle('active', i===ci));
+}
+
+function updateReadyState() {
+  const allReady = curveLoaded.slice(0, nCurves).every(v => v);
+  $('nextbtn').disabled = !allReady;
+  $('runbtn').disabled  = !allReady;
+}
+
+function attachFileListener(ci) {
+  const inp = $(cid(ci, 'file'));
+  if (!inp) return;
+  inp.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    $('status').textContent = 'Uploading curve ' + (ci + 1) + '…';
+    try {
+      const res  = await fetch('/api/upload?curve=' + ci, {method:'POST', body:formData});
+      const json = await res.json();
+      if (json.error) { $('status').textContent = json.error; return; }
+      curveLoaded[ci] = true;
+      const rows  = json.data;
+      const ncols = rows[0].length;
+      let html = '<table class="preview"><tr><th>Time (min)</th>';
+      for (let j = 1; j < ncols; j++) html += '<th>Rep ' + j + ' (g)</th>';
+      html += '</tr>';
+      const n = Math.min(rows.length, 3);
+      for (let i = 0; i < n; i++) {
+        html += '<tr>';
+        for (let j = 0; j < ncols; j++) html += '<td>' + rows[i][j] + '</td>';
+        html += '</tr>';
+      }
+      if (rows.length > n) html += '<tr><td colspan="' + ncols + '">… ' + (rows.length - n) + ' more rows</td></tr>';
+      html += '</table>';
+      $(cid(ci, 'preview')).innerHTML = html;
+      $('status').textContent = 'Curve ' + (ci + 1) + ' loaded: ' + rows.length + ' rows × ' + rows[0].length + ' columns.';
+      updateReadyState();
+    } catch(err) { $('status').textContent = 'Upload failed: ' + err.message; }
+  });
+}
+
+function setCurveCount(n) {
+  n = Math.max(1, Math.min(10, n));
+  nCurves = n;
+  while (curveLoaded.length < n) curveLoaded.push(false);
+  buildCurveTabs();
+  $('curve-panels').innerHTML = Array.from({length:n}, (_,i) => buildCurvePanel(i)).join('');
+  for (let i = 0; i < n; i++) attachFileListener(i);
+  showCurveTab(0);
+  updateReadyState();
+}
+
+// Initial setup
+setCurveCount(1);
+$('ncurves').addEventListener('change', e => setCurveCount(parseInt(e.target.value) || 1));
+$('ncurves').addEventListener('input',  e => { const n = parseInt(e.target.value); if (n >= 1 && n <= 10) setCurveCount(n); });
+
+// ── Current parameter specs for the selected model ────────────────
 let currentSpecs = [];
 
-// ── Model change → update optimizer bounds ───────────────────
 async function updateBounds() {
   const model = $('model-select').value;
   try {
-    const res = await fetch('/api/model_params?model=' + encodeURIComponent(model));
+    const res   = await fetch('/api/model_params?model=' + encodeURIComponent(model));
     const specs = await res.json();
     currentSpecs = specs;
     let html = '';
@@ -232,61 +343,32 @@ async function updateBounds() {
 $('model-select').addEventListener('change', updateBounds);
 updateBounds();
 
-// ── File upload → preview ────────────────────────────────────────
-$('datafile').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const formData = new FormData();
-  formData.append('file', file);
-  $('status').textContent = 'Uploading…';
-  try {
-    const res = await fetch('/api/upload', {method:'POST', body:formData});
-    const json = await res.json();
-    if (json.error) { $('status').textContent = json.error; return; }
-    const rows = json.data;
-    const ncols = rows[0].length;
-    let html = '<table class="preview"><tr><th>Time (min)</th>';
-    for (let j = 1; j < ncols; j++) html += '<th>Rep ' + j + ' (g)</th>';
-    html += '</tr>';
-    const n = Math.min(rows.length, 3);
-    for (let i = 0; i < n; i++) {
-      html += '<tr>';
-      for (let j = 0; j < ncols; j++) html += '<td>' + rows[i][j] + '</td>';
-      html += '</tr>';
-    }
-    if (rows.length > n) html += '<tr><td colspan="' + ncols + '">… ' + (rows.length - n) + ' more rows</td></tr>';
-    html += '</table>';
-    $('preview').innerHTML = html;
-    $('nextbtn').disabled = false;
-    $('runbtn').disabled = false;
-    $('status').textContent = 'Data loaded: ' + rows.length + ' rows × ' + rows[0].length + ' columns.';
-  } catch(err) { $('status').textContent = 'Upload failed: ' + err.message; }
-});
-
 // ── Run fitting ──────────────────────────────────────────────────
 $('runbtn').addEventListener('click', async () => {
-  const condIds = ['porosity','x0','solid_density','solvent_density',
-    'flow_rate','bed_height','bed_diameter','particle_diameter','solid_mass',
-    'solubility'];
-  const body = {};
-  for (const id of condIds) {
-    const v = parseFloat($(id).value);
-    if (isNaN(v)) { $('status').textContent = 'Invalid value for ' + id; return; }
-    body[id] = v;
+  // Collect per-curve conditions
+  const curves = [];
+  for (let ci = 0; ci < nCurves; ci++) {
+    const cond = {};
+    for (const f of COND_FIELDS) {
+      const v = parseFloat($(cid(ci, f.id)).value);
+      if (isNaN(v)) { $('status').textContent = 'Invalid value for curve ' + (ci+1) + ': ' + f.id; return; }
+      cond[f.id] = v;
+    }
+    curves.push(cond);
   }
-  body.model = $('model-select').value;
+  // Collect optimizer bounds
+  const bounds = {};
   for (const s of currentSpecs) {
     const lo = parseFloat($(s.name + '_lo').value);
     const hi = parseFloat($(s.name + '_hi').value);
-    if (isNaN(lo) || isNaN(hi)) {
-      $('status').textContent = 'Invalid bounds for ' + s.name; return;
-    }
-    body[s.name + '_lo'] = lo;
-    body[s.name + '_hi'] = hi;
+    if (isNaN(lo) || isNaN(hi)) { $('status').textContent = 'Invalid bounds for ' + s.name; return; }
+    bounds[s.name + '_lo'] = lo;
+    bounds[s.name + '_hi'] = hi;
   }
   const me = parseFloat($('maxevals').value);
   if (isNaN(me)) { $('status').textContent = 'Invalid max evaluations'; return; }
-  body.maxevals = me;
+
+  const body = { model: $('model-select').value, maxevals: me, curves, ...bounds };
   $('runbtn').disabled = true;
   showTab('results');
   $('spinner').style.display        = 'flex';
@@ -304,11 +386,11 @@ $('runbtn').addEventListener('click', async () => {
       $('runbtn').disabled = false;
       return;
     }
-    $('output-content').style.display = 'block';  // must show before drawChart measures width
+    $('output-content').style.display = 'block';
     $('result-model').textContent = 'Model: ' + json.model;
     renderParams(json.params);
-    renderDataTable(json.chart);
-    drawChart(json.chart);
+    renderDataTable(json.charts);
+    drawChart(json.charts);
     const _t = Date.now();
     $('dl-txt').href  = '/api/download?format=txt&_t='  + _t;
     $('dl-xlsx').href = '/api/download?format=xlsx&_t=' + _t;
@@ -333,22 +415,31 @@ function renderParams(params) {
 }
 
 // ── Render exp vs calc data table ────────────────────────────────
-function renderDataTable(ch) {
-  const nr  = ch.exp.length;
-  let html  = '<tr><th>Time (min)</th>';
-  for (let j = 0; j < nr; j++)
-    html += '<th>' + (nr > 1 ? 'Exp. rep. ' + (j+1) : 'Experimental') + ' (g)</th>';
-  html += '<th>Calculated (g)</th></tr>';
-  ch.t_min.forEach((t, i) => {
-    html += '<tr><td>' + t.toFixed(2) + '</td>';
-    ch.exp.forEach(rep => html += '<td>' + rep[i].toFixed(4) + '</td>');
-    html += '<td>' + ch.cal[i].toFixed(4) + '</td></tr>';
+function renderDataTable(charts) {
+  let html = '';
+  charts.forEach((ch, ci) => {
+    const nr = ch.exp.length;
+    if (charts.length > 1) {
+      html += '<tr class="data-curve-hdr"><td colspan="99">Curve ' + (ci + 1) + '</td></tr>';
+    }
+    html += '<tr><th>Time (min)</th>';
+    for (let j = 0; j < nr; j++)
+      html += '<th>' + (nr > 1 ? 'Exp. rep. ' + (j+1) : 'Experimental') + ' (g)</th>';
+    html += '<th>Calculated (g)</th></tr>';
+    ch.t_min.forEach((t, i) => {
+      html += '<tr><td>' + t.toFixed(2) + '</td>';
+      ch.exp.forEach(rep => html += '<td>' + rep[i].toFixed(4) + '</td>');
+      html += '<td>' + ch.cal[i].toFixed(4) + '</td></tr>';
+    });
   });
   $('data-table').innerHTML = html;
 }
 
 // ── Extraction curve chart (vanilla Canvas) ───────────────────────
-function drawChart(ch) {
+const CURVE_COLORS = ['#2563eb','#7c3aed','#059669','#dc2626','#d97706',
+                      '#0891b2','#db2777','#65a30d','#ea580c','#8b5cf6'];
+
+function drawChart(charts) {
   const canvas = $('chart');
   const dpr = window.devicePixelRatio || 1;
   const W   = canvas.offsetWidth;
@@ -363,8 +454,9 @@ function drawChart(ch) {
   const pw = W - pad.left - pad.right;
   const ph = H - pad.top  - pad.bottom;
 
-  const allY = [...ch.cal, ...ch.exp.flat()];
-  const xMax = Math.max(...ch.t_min) * 1.04;
+  const allT = charts.flatMap(ch => ch.t_min);
+  const allY = charts.flatMap(ch => [...ch.cal, ...ch.exp.flat()]);
+  const xMax = Math.max(...allT) * 1.04;
   const yMax = Math.max(...allY) * 1.08;
   const tx = x => pad.left + (x / xMax) * pw;
   const ty = y => pad.top  + ph - (y / yMax) * ph;
@@ -404,31 +496,35 @@ function drawChart(ch) {
   ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 1;
   ctx.strokeRect(pad.left, pad.top, pw, ph);
 
-  const expColors = ['#dc2626','#d97706','#059669','#7c3aed','#0891b2'];
-  ch.exp.forEach((rep, ri) => {
-    ctx.fillStyle = expColors[ri % expColors.length];
-    rep.forEach((y, i) => {
-      ctx.beginPath(); ctx.arc(tx(ch.t_min[i]), ty(y), 4, 0, 2*Math.PI); ctx.fill();
+  // Draw each curve
+  charts.forEach((ch, ci) => {
+    const color = CURVE_COLORS[ci % CURVE_COLORS.length];
+    // Experimental dots (semi-transparent)
+    ctx.fillStyle = color + '99';
+    ch.exp.forEach(rep => {
+      rep.forEach((y, i) => {
+        ctx.beginPath(); ctx.arc(tx(ch.t_min[i]), ty(y), 4, 0, 2*Math.PI); ctx.fill();
+      });
     });
+    // Calculated line
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ch.t_min.forEach((t, i) => i === 0 ? ctx.moveTo(tx(t), ty(ch.cal[i]))
+                                        : ctx.lineTo(tx(t), ty(ch.cal[i])));
+    ctx.stroke();
   });
 
-  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ch.t_min.forEach((t, i) => i === 0 ? ctx.moveTo(tx(t), ty(ch.cal[i]))
-                                      : ctx.lineTo(tx(t), ty(ch.cal[i])));
-  ctx.stroke();
-
-  const lx = pad.left + 10, ly = pad.top + 8;
+  // Legend
+  const lx = pad.left + 10;
+  let ly = pad.top + 8;
   ctx.font = '11px system-ui'; ctx.textAlign = 'left';
-  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(lx, ly+5); ctx.lineTo(lx+18, ly+5); ctx.stroke();
-  ctx.fillStyle = '#374151'; ctx.fillText('Calculated', lx+22, ly+9);
-  ch.exp.forEach((_, ri) => {
-    const ey = ly + 18*(ri+1);
-    ctx.fillStyle = expColors[ri % expColors.length];
-    ctx.beginPath(); ctx.arc(lx+9, ey+4, 4, 0, 2*Math.PI); ctx.fill();
-    ctx.fillStyle = '#374151';
-    ctx.fillText(ch.exp.length > 1 ? 'Exp. rep. '+(ri+1) : 'Experimental', lx+22, ey+8);
+  charts.forEach((_, ci) => {
+    const color = CURVE_COLORS[ci % CURVE_COLORS.length];
+    const label = charts.length > 1 ? 'Curve ' + (ci + 1) : 'Calculated';
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lx, ly + 5); ctx.lineTo(lx + 18, ly + 5); ctx.stroke();
+    ctx.fillStyle = '#374151'; ctx.fillText(label, lx + 22, ly + 9);
+    ly += 16;
   });
 }
 
@@ -549,11 +645,21 @@ function _start_gui(port::Int, launch::Bool)
     _versioned_html = replace(_GUI_HTML, "__VERSION__" => string(pkgversion(@__MODULE__)))
     HTTP.register!(router, "GET", "/", _ -> HTTP.Response(200, ["Content-Type" => "text/html"], _versioned_html))
 
-    # File upload endpoint
+    # File upload endpoint — accepts ?curve=N (0-indexed)
     HTTP.register!(router, "POST", "/api/upload", function(req)
         try
+            # Parse curve index from query string (default 0)
+            m = match(r"curve=(\d+)", req.target)
+            ci = m !== nothing ? parse(Int, m.captures[1]) + 1 : 1  # 1-indexed for Julia
+
             data = _parse_upload(req)
-            _gui_data[] = data
+
+            # Resize the data vector if needed
+            while length(_gui_data[]) < ci
+                push!(_gui_data[], nothing)
+            end
+            _gui_data[][ci] = data
+
             rows = [data[i, :] for i in 1:size(data, 1)]
             return HTTP.Response(200, ["Content-Type" => "application/json"],
                 JSON3.write(Dict("data" => rows)))
@@ -584,72 +690,88 @@ function _start_gui(port::Int, launch::Bool)
     HTTP.register!(router, "POST", "/api/run", function(req)
         try
             p = JSON3.read(String(req.body))
-            data = _gui_data[]
-            data === nothing && error("No data loaded — upload a file first.")
+            curve_conds = p[:curves]  # array of condition objects
+            ncurves = length(curve_conds)
+
+            # Validate that all curve data is uploaded
+            gdata = _gui_data[]
+            for ci in 1:ncurves
+                if ci > length(gdata) || gdata[ci] === nothing
+                    error("No data uploaded for curve $ci — upload a file first.")
+                end
+            end
 
             model_name = haskey(p, :model) ? String(p[:model]) : "sovova"
+            maxevals   = Int(p[:maxevals])
 
-            curve = ExtractionCurve(
-                data              = data,
-                porosity          = Float64(p[:porosity]),
-                x0                = Float64(p[:x0]),
-                solid_density     = Float64(p[:solid_density]),
-                solvent_density   = Float64(p[:solvent_density]),
-                flow_rate         = Float64(p[:flow_rate]),
-                bed_height        = Float64(p[:bed_height]),
-                bed_diameter      = Float64(p[:bed_diameter]),
-                particle_diameter = Float64(p[:particle_diameter]),
-                solid_mass        = Float64(p[:solid_mass]),
-                solubility        = Float64(p[:solubility]),
-            )
+            # Build ExtractionCurve objects
+            curves = ExtractionCurve[
+                ExtractionCurve(
+                    data              = gdata[ci],
+                    porosity          = Float64(curve_conds[ci][:porosity]),
+                    x0                = Float64(curve_conds[ci][:x0]),
+                    solid_density     = Float64(curve_conds[ci][:solid_density]),
+                    solvent_density   = Float64(curve_conds[ci][:solvent_density]),
+                    flow_rate         = Float64(curve_conds[ci][:flow_rate]),
+                    bed_height        = Float64(curve_conds[ci][:bed_height]),
+                    bed_diameter      = Float64(curve_conds[ci][:bed_diameter]),
+                    particle_diameter = Float64(curve_conds[ci][:particle_diameter]),
+                    solid_mass        = Float64(curve_conds[ci][:solid_mass]),
+                    solubility        = Float64(curve_conds[ci][:solubility]),
+                )
+                for ci in 1:ncurves
+            ]
 
-            maxevals = Int(p[:maxevals])
-
+            local result, params, charts
             if model_name == "sovova"
-                result = fit_model(Sovova(), curve;
-                    kya_bounds      = (Float64(p[:kya_lo]), Float64(p[:kya_hi])),
-                    kxa_bounds      = (Float64(p[:kxa_lo]), Float64(p[:kxa_hi])),
+                result = fit_model(Sovova(), curves;
+                    kya_bounds      = (Float64(p[:kya_lo]),       Float64(p[:kya_hi])),
+                    kxa_bounds      = (Float64(p[:kxa_lo]),       Float64(p[:kxa_hi])),
                     xk_ratio_bounds = (Float64(p[:xk_ratio_lo]), Float64(p[:xk_ratio_hi])),
                     maxevals        = maxevals,
                     tracemode       = :silent,
                 )
-                _gui_result[] = (result, curve)
-
-                t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
-                chart  = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
-                params = [
-                    Dict("name" => "kya",    "value" => result.kya[1],    "unit" => "1/s"),
-                    Dict("name" => "kxa",    "value" => result.kxa[1],    "unit" => "1/s"),
-                    Dict("name" => "xk/x₀",  "value" => result.xk_ratio,  "unit" => ""),
-                    Dict("name" => "xk",     "value" => result.xk[1],     "unit" => "kg/kg"),
-                    Dict("name" => "tCER",   "value" => result.tcer[1],   "unit" => "s"),
-                    Dict("name" => "SSR",    "value" => result.objective, "unit" => ""),
-                ]
+                params = vcat(
+                    [Dict("name" => "xk/x₀", "value" => result.xk_ratio, "unit" => "")],
+                    [Dict("name" => "kya[$i]", "value" => result.kya[i], "unit" => "1/s")
+                     for i in 1:ncurves]...,
+                    [Dict("name" => "kxa[$i]", "value" => result.kxa[i], "unit" => "1/s")
+                     for i in 1:ncurves]...,
+                    [Dict("name" => "tCER[$i]", "value" => result.tcer[i], "unit" => "s")
+                     for i in 1:ncurves]...,
+                    [Dict("name" => "SSR", "value" => result.objective, "unit" => "")],
+                )
+                charts = [begin
+                    t_min, exps, cal, _ = _deinterleave(curves[i], result.ycal[i])
+                    Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+                end for i in 1:ncurves]
             else
                 model = model_from_name(model_name)
                 spec  = param_spec(model)
-                pbounds = Tuple{Float64,Float64}[]
-                for s in spec
-                    lo = Float64(p[Symbol(s.name * "_lo")])
-                    hi = Float64(p[Symbol(s.name * "_hi")])
-                    push!(pbounds, (lo, hi))
-                end
-                result = fit_model(model, curve;
+                pbounds = Tuple{Float64,Float64}[
+                    (Float64(p[Symbol(s.name * "_lo")]), Float64(p[Symbol(s.name * "_hi")]))
+                    for s in spec
+                ]
+                result = fit_model(model, curves;
                     param_bounds = pbounds,
                     maxevals     = maxevals,
                     tracemode    = :silent,
                 )
-                _gui_result[] = (result, curve)
-
-                t_min, exps, cal, _ = _deinterleave(curve, result.ycal[1])
-                chart  = Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
-                params = [Dict("name" => s.name, "value" => result.params[i], "unit" => "")
-                          for (i, s) in enumerate(result.spec)]
-                push!(params, Dict("name" => "SSR", "value" => result.objective, "unit" => ""))
+                params = vcat(
+                    [Dict("name" => s.name, "value" => result.params[i], "unit" => "")
+                     for (i, s) in enumerate(result.spec)],
+                    [Dict("name" => "SSR", "value" => result.objective, "unit" => "")],
+                )
+                charts = [begin
+                    t_min, exps, cal, _ = _deinterleave(curves[i], result.ycal[i])
+                    Dict("t_min" => t_min, "exp" => exps, "cal" => cal)
+                end for i in 1:ncurves]
             end
 
+            _gui_result[] = (result, curves)
+
             return HTTP.Response(200, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("chart" => chart, "params" => params, "model" => model_name)))
+                JSON3.write(Dict("charts" => charts, "params" => params, "model" => model_name)))
         catch e
             return HTTP.Response(200, ["Content-Type" => "application/json"],
                 JSON3.write(Dict("error" => sprint(showerror, e))))
@@ -691,11 +813,11 @@ function _start_gui(port::Int, launch::Bool)
     HTTP.register!(router, "GET", "/api/download", function(req)
         cached = _gui_result[]
         cached === nothing && return HTTP.Response(400, "No results yet — run the fitting first.")
-        result, curve = cached
+        result, curves = cached
         fmt = contains(req.target, "format=xlsx") ? "xlsx" : "txt"
         tmpfile = tempname() * "." * fmt
         try
-            export_results(tmpfile, result, curve)
+            export_results(tmpfile, result, curves)
             body = read(tmpfile)
             mime = fmt == "xlsx" ?
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" :
