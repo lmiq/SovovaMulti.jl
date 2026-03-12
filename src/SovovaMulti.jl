@@ -744,6 +744,13 @@ function _fitted_params(result::ModelFitResult{Sovova}, ic::Int)
      ("SSR",   result.objective, "")]
 end
 
+function _fitted_params(result::ModelFitResult, ::Int)
+    data = getfield(result, :_data)
+    rows = Tuple{String,Float64,String}[(s.name, v, "") for (s, v) in zip(data.spec, data.params)]
+    push!(rows, ("SSR", result.objective, ""))
+    return rows
+end
+
 function _cond_params(c::ExtractionCurve)
     [("temperature",       c.temperature,                "K"),
      ("porosity",          c.porosity,                   ""),
