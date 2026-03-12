@@ -24,19 +24,6 @@ Returns a [`ModelFitResult`](@ref).
 struct Sovova            <: ExtractionModel end
 
 """
-    Reverchon()
-
-Single-exponential model (Reverchon, 1993):
-
-```math
-m_e(t) = m_{total}\\,(1 - e^{-k_1 t})
-```
-
-One fitted parameter: `k1` — rate constant (1/s).
-"""
-struct Reverchon         <: ExtractionModel end
-
-"""
     Esquivel()
 
 Single-exponential model (Esquível & Bernardo-Gil, 1999):
@@ -149,10 +136,6 @@ param_spec(::Sovova) = [
     ParamSpec("xk_ratio", "xk/x₀ — accessible solute ratio (—)", 0.0, 1.0),
 ]
 
-param_spec(::Reverchon) = [
-    ParamSpec("k1", "k₁ — rate constant (1/s)", 0.0, 1e-2),
-]
-
 param_spec(::Esquivel) = [
     ParamSpec("k1", "k₁ — rate constant (1/s)", 0.0, 1e-2),
 ]
@@ -186,12 +169,6 @@ param_spec(::SplineModel) = [
 ]
 
 # ── Simulate functions ────────────────────────────────────────────────────────
-
-function simulate(::Reverchon, curve::ExtractionCurve, p::Vector{Float64})
-    m_total = curve.x0 * curve.solid_mass
-    k1 = p[1]
-    return [m_total * (1.0 - exp(-k1 * t)) for t in curve.t]
-end
 
 function simulate(::Esquivel, curve::ExtractionCurve, p::Vector{Float64})
     m_total = curve.x0 * curve.solid_mass
@@ -332,7 +309,7 @@ shared across curves, and returns a [`ModelFitResult{M}`](@ref ModelFitResult).
 
 # Arguments
 - `model`: kinetic model instance. Defaults to `Sovova()` when omitted.
-  Empirical options: `Reverchon()`, `Esquivel()`, `Zekovic()`, `Nguyen()`,
+  Empirical options: `Esquivel()`, `Zekovic()`, `Nguyen()`,
   `VeljkovicMilenovic()`, `PKM()`, `SplineModel()`.
 - `curve` / `curves`: a single [`ExtractionCurve`](@ref) or a `Vector` of them.
 
@@ -399,7 +376,6 @@ end
 
 const _MODEL_REGISTRY = Dict{String, ExtractionModel}(
     "sovova"    => Sovova(),
-    "reverchon" => Reverchon(),
     "esquivel"  => Esquivel(),
     "zekovic"   => Zekovic(),
     "nguyen"    => Nguyen(),

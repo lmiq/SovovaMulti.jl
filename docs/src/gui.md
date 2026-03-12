@@ -22,7 +22,7 @@ In the browser interface you can:
 
 - **Upload** a data file (`.txt`, `.csv`, `.dat`, or `.xlsx`) with time and replicate columns
   — [example\_data.txt](assets/example_data.txt) · [example\_data.xlsx](assets/example_data.xlsx)
-- **Select** a kinetic model from a dropdown (Sovová, Reverchon, Esquível, Zekovic, Nguyen,
+- **Select** a kinetic model from a dropdown (Sovová, Esquível, Zekovic, Nguyen,
   Veljković & Milenović, PKM, or Spline)
 - **Fill in** all operating conditions through form fields (temperature, porosity, densities, etc.)
 - **Configure** optimizer bounds for each model's parameters (bounds update automatically when

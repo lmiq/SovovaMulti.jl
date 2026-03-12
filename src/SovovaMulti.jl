@@ -9,7 +9,7 @@ using JSON3
 
 export ExtractionCurve, TextTable, ExcelTable, sovovagui, create_shortcut, export_results
 export ExtractionModel, ParamSpec, ModelFitResult, fit_model, param_spec, simulate
-export Sovova, Reverchon, Esquivel, Zekovic, Nguyen, VeljkovicMilenovic, PKM, SplineModel
+export Sovova, Esquivel, Zekovic, Nguyen, VeljkovicMilenovic, PKM, SplineModel
 
 const kB = 1.3806503e-23  # Boltzmann constant (J/K)
 const r_solute = 1.0e-9   # solute molecule radius (m)

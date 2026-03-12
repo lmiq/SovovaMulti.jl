@@ -230,7 +230,6 @@ models that can be fitted with [`fit_model`](@ref):
 
 | Model type | Reference | Parameters |
 |:---|:---|:---|
-| `Reverchon()` | Reverchon (1993) | k₁ — rate constant (1/s) |
 | `Esquivel()` | Esquivel (1999) | k₁ — rate constant (1/s) |
 | `Nguyen()` | Nguyen (1991) | k₁ — solid-phase transfer coefficient (1/s) |
 | `Zekovic()` | Žeković (2003) | k₁ — accessible yield fraction (—); k₂ — rate constant (1/s) |
@@ -241,7 +240,7 @@ models that can be fitted with [`fit_model`](@ref):
 ### Single-curve fit
 
 ```@example complete
-result = fit_model(Reverchon(), curve)
+result = fit_model(Esquivel(), curve)
 ```
 
 ### Multi-curve fit

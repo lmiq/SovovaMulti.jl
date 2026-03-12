@@ -53,22 +53,6 @@ The PDE is solved numerically by the method of lines (upwind finite differences 
 
 ---
 
-## Reverchon (1993)
-
-Single-exponential empirical model:
-
-```math
-m_e(t) = m_T \left(1 - e^{-k_1 t}\right)
-```
-
-| Symbol | Description |
-|--------|-------------|
-| ``k_1`` | Overall mass-transfer rate constant (1/s) |
-
-**Reference:** Reverchon, E.; Donsi, G.; Ossèo, L.S. (1993). *Ind. Eng. Chem. Res.*, 32(11), 2721–2726. [doi:10.1021/ie00023a039](https://doi.org/10.1021/ie00023a039)
-
----
-
 ## Esquível (1999)
 
 Single-exponential empirical model derived from a simplified mass balance:

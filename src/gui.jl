@@ -136,7 +136,6 @@ table.data tr:hover td{background:#fafafa}
 <label>Extraction model
   <select id="model-select">
     <option value="sovova" selected>Sovová (1994) — Broken and Intact Cells</option>
-    <option value="reverchon">Reverchon (1993) — single exponential</option>
     <option value="esquivel">Esquível (1999) — single exponential</option>
     <option value="zekovic">Zeković (2003) — accessible fraction + rate</option>
     <option value="nguyen">Nguyen (1991) — solid-phase resistance</option>

@@ -28,7 +28,6 @@ Available model types (pass an instance as the first argument to `fit_model`; om
 
 ```@docs
 Sovova
-Reverchon
 Esquivel
 Nguyen
 Zekovic

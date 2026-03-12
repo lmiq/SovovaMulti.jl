@@ -23,7 +23,6 @@ experimental extraction curves. The package:
 | Model | Parameters | Description |
 |-------|-----------|-------------|
 | Sovová (1994) | `kya`, `kxa`, `xk/x0` | PDE — broken & intact cells; multi-curve with shared `xk/x0` |
-| Reverchon (1993) | `k1` | Empirical — single exponential |
 | Esquível (1999) | `k1` | Empirical — single exponential |
 | Zekovic (2003) | `k1`, `k2` | Empirical — accessible fraction × exponential |
 | Nguyen (1991) | `k1` | Empirical — solid-phase resistance |
