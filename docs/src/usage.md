@@ -1,5 +1,7 @@
 # Advanced usage
 
+The advanced usage is based on a programming interface. The package can be run in the Julia REPL, in a Jupyter or Pluto notebook, or in a dedicated programming interface, such as VSCode. Additional tips for a nice programming workflow using Julia can be found at the [Modern Julia Workflows](https://modernjuliaworkflows.org/).
+
 ## Defining an extraction curve
 
 Create an [`ExtractionCurve`](@ref) with your experimental data and operating conditions.
@@ -277,6 +279,19 @@ println(result.params[1])  # k1 — accessible yield fraction
 println(result.params[2])  # k2 — rate constant (1/s)
 println(result.ycal[1])    # calculated curve (kg)
 println(result.objective)  # SSR
+```
+
+### Exporting results
+
+Use [`export_results`](@ref) to write fitting results to a file. The format is determined
+by the file extension — `.xlsx` produces an Excel workbook; any other extension produces
+a space-delimited text file with parameters as `#`-comment lines (re-readable by
+[`TextTable`](@ref)):
+
+```julia
+export_results("results.txt",  result, curve)   # text file
+export_results("results.xlsx", result, curve)   # Excel workbook
+export_results("results.txt",  result, [curve1, curve2])  # multiple curves
 ```
 
 All results share the same `show` format:

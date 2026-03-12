@@ -21,6 +21,7 @@ ExcelTable
 
 ```@docs
 SovovaMulti.simulate
+SimWorkspace
 ```
 
 ## Fitting
@@ -47,8 +48,16 @@ SplineModel
 
 ```@docs
 ModelFitResult
+export_results
 ```
 
 ## Graphical Interface
 
 See the [GUI](@ref "Graphical User Interface") page.
+
+## Utilities
+
+```@docs
+create_shortcut
+SovovaMulti.main
+```
