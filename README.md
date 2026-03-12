@@ -32,10 +32,6 @@ Esquível, M.M.; Bernardo-Gil, M.G.; King, M.B. (1999). Mathematical models for 
 
 Zeković, Z.P.; Lepojević, Ž.D.; Milošević, S.G.; Tolić, A.Š. (2003). Modeling of the thyme: liquid carbon dioxide extraction system. *Acta Periodica Technologica*, 34, 125–133. https://doi.org/10.2298/APT0334125Z
 
-Nguyen, K.; Barton, P.; Spencer, J.S. (1991). Supercritical carbon dioxide extraction of vanilla. *Journal of Supercritical Fluids*, 4(1), 40–46. https://doi.org/10.1016/0896-8446(91)90029-6
-
-Veljković, V.B.; Milenović, D.M. (2002). Extraction of resinoids from St. John's wort — II. Modeling of extraction kinetics. *Hemijska Industrial*, 56(2), 60–67. https://doi.org/10.2298/HEMIND0202060V
-
 Maksimović, S.; Ivanović, J.; Skala, D. (2012). Supercritical extraction of essential oil from Mentha and mathematical modelling. *Procedia Engineering*, 42, 1767–1777. https://doi.org/10.1016/j.proeng.2012.07.571
 
 Rodrigues, V.M.; Rosa, P.T.V.; Marques, M.O.M.; Petenate, A.J.; Meireles, M.A.A. (2003). Supercritical extraction of essential oil from aniseed using CO₂: Solubility, kinetics, and composition data. *Journal of Agricultural and Food Chemistry*, 51(6), 1518–1523. https://doi.org/10.1021/jf0257493
