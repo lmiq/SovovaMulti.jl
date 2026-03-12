@@ -338,7 +338,7 @@ var
 begin
   AppBat := ExpandConstant('{%USERPROFILE}\.julia\bin\sovovamulti.bat');
   if FileExists(AppBat) then
-    Exec(ExpandConstant('{cmd}'), '/C "' + AppBat + '" -- --create-shortcut', '',
+    Exec(ExpandConstant('{cmd}'), '/C "' + AppBat + '" --create-shortcut', '',
          SW_HIDE, ewWaitUntilTerminated, RC);
 end;
 
