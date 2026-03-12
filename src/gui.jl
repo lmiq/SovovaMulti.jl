@@ -175,11 +175,13 @@ table.data tr:hover td{background:#fafafa}
 
 <div id="output-content" style="display:none">
 
+  <div id="result-model" style="text-align:center;font-size:.88rem;color:#6b7280;margin-bottom:8px"></div>
+
   <canvas id="chart"></canvas>
 
   <div id="dlrow" class="dl-row">
-    <a href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
-    <a href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
+    <a id="dl-txt"  href="/api/download?format=txt"  class="dl-btn" download="SovovaMulti_results.txt">Download TXT</a>
+    <a id="dl-xlsx" href="/api/download?format=xlsx" class="dl-btn" download="SovovaMulti_results.xlsx">Download XLSX</a>
   </div>
 
   <div class="card">
@@ -308,9 +310,13 @@ $('runbtn').addEventListener('click', async () => {
       return;
     }
     $('output-content').style.display = 'block';  // must show before drawChart measures width
+    $('result-model').textContent = 'Model: ' + json.model;
     renderParams(json.params);
     renderDataTable(json.chart);
     drawChart(json.chart);
+    const _t = Date.now();
+    $('dl-txt').href  = '/api/download?format=txt&_t='  + _t;
+    $('dl-xlsx').href = '/api/download?format=xlsx&_t=' + _t;
     $('dlrow').style.display = 'flex';
   } catch(err) {
     $('spinner').style.display   = 'none';
@@ -688,7 +694,8 @@ function _start_gui(port::Int, launch::Bool)
                 "text/plain; charset=utf-8"
             return HTTP.Response(200,
                 ["Content-Type"        => mime,
-                 "Content-Disposition" => "attachment; filename=\"SovovaMulti_results.$fmt\""],
+                 "Content-Disposition" => "attachment; filename=\"SovovaMulti_results.$fmt\"",
+                 "Cache-Control"       => "no-store"],
                 body)
         finally
             rm(tmpfile; force=true)
